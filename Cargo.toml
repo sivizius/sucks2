@@ -1,0 +1,10 @@
+[package]
+name                                    =   "sucks2"
+version                                 =   "0.1.0"
+authors                                 =   [
+                                              "sivizius <sivizius@ohai.su>"
+                                            ]
+edition                                 =   "2018"
+
+[dependencies]
+rand                                    =   "0.6"
