@@ -1,9 +1,11 @@
-pub use super::
+use super::
 {
   Instruction,
+  InstructionPrefix,
   InstructionType,
   super::
   {
+    InstructionSet,
     X86,
     operands::
     {
@@ -27,7 +29,7 @@ macro_rules! simpleMathInstruction
           self,
           dst:                          impl Operand,
           src:                          impl Operand,
-        ) -> Result<Self, &'static str>
+        ) -> Self
         {
           self.simpleMathInstruction ( InstructionType::SimpleMath ( $theOpcode ), stringify! ( $theName ), dst, src )
         }
@@ -52,45 +54,35 @@ impl X86
     mnemonic:                           &'static str,
     dst:                                impl Operand,
     src:                                impl Operand,
-  ) -> Result<Self, &'static str>
+  ) -> Self
   {
     let ( dstThis, dstSize )            =   dst.this();
     let ( srcThis, srcSize )            =   src.this();
     let size: usize                     =   dstSize | srcSize;
-    if          size == 0
-    {
-      Err ( "Operand Size not Specified" )
-    }
-    else  if  ( size != 1 )
-          &&  ( size != 2 )
-    {
-      Err ( "Invalid Operand Sizes" )
-    }
-    else
-    {
-      self.instructions.push
+    self.instructions.push
+    (
+      Instruction
       (
-        Instruction
-        {
-          line:                         self.line,
-          mnemonic:                     mnemonic,
-          size:                         size,
-          length:                       None,
-          prefixes:                     vec!(),
-          opcode:                       opcode,
-          operands:                     vec!( dstThis, srcThis ),
-        }
-      );
-      self.line                         +=  1;
-      Ok ( self )
-    }
+        self.line,
+        mnemonic,
+        size,
+        None,
+        opcode,
+        vec! ( dstThis, srcThis ),
+      )
+    );
+    self.line                           +=  1;
+    self
   }
 
   pub(in super::super) fn compileSimpleMathInstruction
   (
-    instruction:                        Instruction,
+    instruction:                        &mut Instruction,
+    architecture:                       &mut InstructionSet,
+    operandSize:                        &mut usize,
+    addressSize:                        &mut usize,
     opcode:                             u8,
-  ) -> Result<usize, String>
+  ) -> Result<(), String>
   {
     if instruction.operands.len() == 2
     {
@@ -108,7 +100,8 @@ impl X86
                         if  *immediate >= -0x80
                         &&  *immediate <=  0xff
                         {
-                          Ok ( 1 )
+                          instruction.setOpcode ( InstructionType::OneByte ( *dstRegister | 4  ) );
+                          Ok (())
                         }
                         else
                         {
@@ -116,8 +109,9 @@ impl X86
                           (
                             format!
                             (
-                              "Value Out of Bonds [-0x80,0xff] {}",
+                              "Value Out of Bonds [-0x80,0xff] {} on Line {}",
                               *immediate,
+                              instruction.getLineNumber(),
                             )
                           )
                         }
@@ -127,7 +121,11 @@ impl X86
                         if  *immediate >= -0x8000
                         &&  *immediate <=  0xffff
                         {
-                          Ok ( 1 )
+                          if *operandSize == 32
+                          {
+                            instruction.addPrefix ( InstructionPrefix::OperandSizeOverride );
+                          }
+                          Ok (())
                         }
                         else
                         {
@@ -135,18 +133,23 @@ impl X86
                           (
                             format!
                             (
-                              "Value Out of Bonds [-0x8000,0xffff] {}",
+                              "Value Out of Bonds [-0x8000,0xffff] {} on Line {}",
                               *immediate,
+                              instruction.getLineNumber(),
                             )
                           )
                         }
                       },
-                  4 //if operandSize > 16
+                  4 if *architecture >= InstructionSet::i386
                   =>  {
                         if  *immediate >= -0x80000000
                         &&  *immediate <=  0xffffffff
                         {
-                          Ok ( 1 )
+                          if *operandSize == 16
+                          {
+                            instruction.prefixes.push ( InstructionPrefix::OperandSizeOverride );
+                          }
+                          Ok (())
                         }
                         else
                         {
@@ -154,11 +157,23 @@ impl X86
                           (
                             format!
                             (
-                              "Value Out of Bonds [-0x80000000,0xffffffff] {}",
+                              "Value Out of Bonds [-0x80000000,0xffffffff] {} on Line {}",
                               *immediate,
+                              instruction.getLineNumber(),
                             )
                           )
                         }
+                      },
+                  0
+                  =>  {
+                        Err
+                        (
+                          format!
+                          (
+                            "Operand Size not Specified on Line {}",
+                            instruction.getLineNumber(),
+                          )
+                        )
                       },
                   _
                   =>  {
@@ -166,8 +181,9 @@ impl X86
                         (
                           format!
                           (
-                            "Invalid Operand Size {}",
+                            "Invalid Operand Size {} on Line {}",
                             instruction.size,
+                            instruction.getLineNumber(),
                           )
                         )
                       },
@@ -176,12 +192,12 @@ impl X86
               }
               else
               {
-                Ok ( 3 )
+                Ok (())
               }
             },
         ( OperandType::GeneralPurposeRegister ( dstRegister ),  OperandType::GeneralPurposeRegister ( srcRegister ) )
         =>  {
-              Ok ( 2 )
+              Ok (())
             },
         ( _, _ )
         =>  {
@@ -189,10 +205,11 @@ impl X86
               (
                 format!
                 (
-                  "Invalid Combination of Arguments ›{}‹, ›{}‹ for Instruction ›{}‹",
+                  "Invalid Combination of Arguments ›{}‹, ›{}‹ for Instruction ›{}‹ on Line {}",
                   instruction.operands [ 0 ].to_string(),
                   instruction.operands [ 1 ].to_string(),
-                  instruction.mnemonic,
+                  instruction.getMnemonic(),
+                  instruction.getLineNumber(),
                 )
               )
             },
@@ -204,8 +221,10 @@ impl X86
       (
         format!
         (
-          "Instruction ›{}‹ Must Take Exactly 2 Arguments",
-          instruction.mnemonic
+          "Instruction ›{}‹ Must Take Exactly 2 Arguments {} on Line {}",
+          instruction.getMnemonic(),
+          instruction.operands.len(),
+          instruction.getLineNumber(),
         )
       )
     }

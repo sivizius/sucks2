@@ -47,9 +47,9 @@ fn main () -> Result<(), &'static str>
 
   let     myCode
   = X86 ()
-    .label("start")?
-    .add(X86::ax, 42)?
-    .cmp(X86::ax, -42)?;
+    .label("start")
+    .add(X86::ax, 42)
+    .cmp(X86::ax, -42);
 
   let     myAssembly
   = myCode.compile

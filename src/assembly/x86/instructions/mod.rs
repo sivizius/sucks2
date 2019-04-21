@@ -9,6 +9,7 @@ pub use super::
   },
 };
 
+#[derive(Clone)]
 pub enum InstructionType
 {
   Label                                 ( usize ),
@@ -59,11 +60,78 @@ impl InstructionPrefix
 
 pub struct Instruction
 {
-  pub line:                             usize,
-  pub mnemonic:                         &'static str,
-  pub size:                             usize,
-  pub length:                           Option<usize>,
-  pub prefixes:                         Vec<InstructionPrefix>,
-  pub opcode:                           InstructionType,
-  pub operands:                         Vec<OperandType>,
+  line:                                 usize,
+  mnemonic:                             &'static str,
+  size:                                 usize,
+  length:                               Option<usize>,
+  prefixes:                             Vec<InstructionPrefix>,
+  opcode:                               InstructionType,
+  operands:                             Vec<OperandType>,
+}
+
+impl Instruction
+{
+  pub fn getLineNumber
+  (
+    &self,
+  ) -> usize
+  {
+    self.line
+  }
+
+  pub fn getMnemonic
+  (
+    &self,
+  ) -> &'static str
+  {
+    self.mnemonic
+  }
+
+  pub fn getOpcode
+  (
+    &self,
+  ) -> InstructionType
+  {
+    self.opcode.clone()
+  }
+
+  pub fn setOpcode
+  (
+    &mut  self,
+    opcode:                             InstructionType,
+  )
+  {
+    self.opcode                         =   opcode;
+  }
+
+  pub fn addPrefix
+  (
+    &mut  self,
+    prefix:                             InstructionPrefix,
+  )
+  {
+    self.prefixes.push ( prefix );
+  }
+}
+
+pub fn Instruction
+(
+  line:                                 usize,
+  mnemonic:                             &'static str,
+  size:                                 usize,
+  length:                               Option<usize>,
+  opcode:                               InstructionType,
+  operands:                             Vec<OperandType>,
+) -> Instruction
+{
+  Instruction
+  {
+    line:                               line,
+    mnemonic:                           mnemonic,
+    size:                               size,
+    length:                             length,
+    prefixes:                           vec!(),
+    opcode:                             opcode,
+    operands:                           operands,
+  }
 }

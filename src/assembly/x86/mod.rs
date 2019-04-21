@@ -11,8 +11,6 @@ pub use self::
     Instruction,
     InstructionType,
   },
-  operands::*,
-  registers::*,
 };
 
 pub use super::
@@ -57,20 +55,19 @@ impl X86
   (
     mut self,
     name:                               &str,
-  ) -> Result<Self, &'static str>
+  ) -> Self
   {
     self.instructions.push
     (
       Instruction
-      {
-        line:                           self.line,
-        mnemonic:                       "label",
-        size:                           0,
-        length:                         Some ( 0 ),
-        prefixes:                       vec!(),
-        opcode:                         InstructionType::Label ( self.identifiers.len() ),
-        operands:                       vec!(),
-      }
+      (
+        self.line,
+        "label",
+        0,
+        Some ( 0 ),
+        InstructionType::Label ( self.identifiers.len() ),
+        vec!(),
+      )
     );
     self.line                           += 1;
     self.identifiers.insert
@@ -78,7 +75,7 @@ impl X86
       String::from( name ),
       self.identifiers.len()
     );
-    Ok ( self )
+    self
   }
 
   #[allow(unused_mut)]
@@ -106,9 +103,9 @@ impl X86
     );
 
     let mut address:          usize     =   0;
-    for instruction in self.instructions
+    for mut instruction                 in  self.instructions
     {
-      match instruction.opcode
+      match instruction.getOpcode()
       {
         InstructionType::Label          ( identifier )
         =>  {
@@ -118,12 +115,27 @@ impl X86
               }
               else
               {
-                return Err ( format! ( "Invalid Label Number ›{}‹ on Line {}", identifier, instruction.line ) );
+                return  Err
+                        (
+                          format!
+                          (
+                            "Invalid Label Number ›{}‹ on Line {}",
+                            identifier,
+                            instruction.getLineNumber()
+                          )
+                        );
               }
             },
         InstructionType::SimpleMath     ( opcode )
         =>  {
-              X86::compileSimpleMathInstruction ( instruction, opcode )?;
+              X86::compileSimpleMathInstruction
+              (
+                &mut instruction,
+                &mut architecture,
+                &mut operandSize,
+                &mut addressSize,
+                opcode
+              )?;
             },
         _
         =>  {
