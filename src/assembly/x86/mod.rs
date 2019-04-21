@@ -67,6 +67,7 @@ impl X86
         mnemonic:                       "label",
         size:                           0,
         length:                         Some ( 0 ),
+        prefixes:                       vec!(),
         opcode:                         InstructionType::Label ( self.identifiers.len() ),
         operands:                       vec!(),
       }

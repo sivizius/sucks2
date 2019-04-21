@@ -76,6 +76,7 @@ impl X86
           mnemonic:                     mnemonic,
           size:                         size,
           length:                       None,
+          prefixes:                     vec!(),
           opcode:                       opcode,
           operands:                     vec!( dstThis, srcThis ),
         }
