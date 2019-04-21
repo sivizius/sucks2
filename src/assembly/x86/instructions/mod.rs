@@ -1,9 +1,11 @@
+pub mod simpleMath;
+
 pub use super::
 {
   operands::
   {
     Operand,
-    OperandType
+    OperandType,
   },
 };
 
@@ -22,23 +24,4 @@ pub struct Instruction
   pub length:                           Option<usize>,
   pub opcode:                           InstructionType,
   pub operands:                         Vec<OperandType>,
-}
-
-macro_rules! simpleMathInstruction
-{
-  (
-    $theName:ident,
-    $theOpcode:expr
-  )
-  =>  {
-        pub fn $theName
-        (
-          self,
-          dst:                          impl Operand,
-          src:                          impl Operand,
-        ) -> Result<Self, &'static str>
-        {
-          self.simpleMathInstruction ( InstructionType::SimpleMath ( $theOpcode ), stringify! ( $theName ), dst, src )
-        }
-      }
 }
