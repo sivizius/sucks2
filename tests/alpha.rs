@@ -51,13 +51,62 @@ fn main () -> Result<(), &'static str>
     .add(X86::ax, 42)
     .cmp(X86::ax, -42);
 
-  let     myAssembly
+  let mut myAssembly
   = myCode.compile
     (
       InstructionSet::i8086,
       16,
       16,
     ).unwrap();
+  
+  let bytesPerLine                      =   32;
+  let lines                             =   myAssembly.len() / bytesPerLine;
+  let rest                              =   myAssembly.len() % bytesPerLine;
+  for line in 0..lines
+  {
+    for offs                            in  0 .. bytesPerLine
+    {
+      print! ( "{:02x} ", myAssembly[ bytesPerLine * line + offs ] );
+    }
+    print! ( "| " );
+    for offs                            in  0 .. bytesPerLine
+    {
+      let char                          =   myAssembly[ bytesPerLine * line + offs ];
+      if  ( char >= 0x20)
+      &&  ( char <= 0x7e )
+      {
+        print! ( "{}", char as char );
+      }
+      else
+      {
+        print! ( "." );
+      }
+    }
+    println! ( "" );
+  }
+  for offs                              in 0 .. rest
+  {
+    print! ( "{:02x} ", myAssembly[ bytesPerLine * lines + offs ] );
+  }
+  for offs                              in 0 .. bytesPerLine - rest
+  {
+    print! ( "   " );
+  }
+  print! ( "| " );
+  for offs in 0 .. rest
+  {
+    let char                            =   myAssembly[ bytesPerLine * lines + offs ];
+    if  ( char >= 0x20)
+    &&  ( char <= 0x7e )
+    {
+      print! ( "{}", char as char );
+    }
+    else
+    {
+      print! ( "." );
+    }
+  }
+  println! ( "" );
 
   let     myMasterBootRecord
   = MasterBootRecord

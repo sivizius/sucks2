@@ -85,8 +85,14 @@ impl X86
     mut architecture:                   InstructionSet,
     mut operandSize:                    usize,
     mut addressSize:                    usize,
-  ) -> Result<usize, String>
+  ) -> Result<Box<[u8]>, String>
   {
+    let mut output: Vec<u8>             =   vec!();
+    for x in 0 .. 255
+    {
+      output.push ( x );
+    }
+
     if  ( architecture < InstructionSet::i386 )
     &&  (
           ( operandSize != 16 ) || ( addressSize != 16 )
@@ -143,6 +149,6 @@ impl X86
       }
     }
 
-    Ok(2)
+    Ok ( output.into_boxed_slice() )
   }
 }
