@@ -26,6 +26,86 @@ use sucks2::
   },
 };
 
+fn hexDump
+(
+  buffer:                               Box<[u8]>,
+  offset:                               usize,
+  mut length:                           usize,
+  width:                                usize,
+) -> Result<usize, &'static str>
+{
+  let   size                            =   buffer.len();
+  if offset < size
+  {
+    if length == 0
+    {
+      length                            =   size - offset;
+    }
+    if length <= ( size - offset )
+    {
+      let   lines                       =   length / width;
+      for line                          in  0 .. lines
+      {
+        for pos                         in  0 .. width
+        {
+          print!  ( "{:02x} ", buffer [ offset + width * line + pos ] );
+        }
+        print!  ( "| " );
+        for pos                         in  0 .. width
+        {
+          let char                      =   buffer [ offset + width * line + pos ];
+          if  char > 0x1f
+          &&  char < 0x7f
+          {
+            print!  ( "{}", char as char );
+          }
+          else
+          {
+            print!  ( "." );
+          }
+        }
+        println!  ( "" );
+      }
+      let   remainder                   =   length % width;
+      if remainder > 0
+      {
+        for pos                         in  0 .. remainder
+        {
+          print!  ( "{:02x} ", buffer [ offset + width * lines + pos ] );
+        }
+        for pos                         in  remainder .. width
+        {
+          print!  ( "   " );
+        }
+        print!  ( "| " );
+        for pos                         in  0 .. remainder
+        {
+          let char                      =   buffer [ offset + width * lines + pos ];
+          if  char > 0x1f
+          &&  char < 0x7f
+          {
+            print!  ( "{}", char as char );
+          }
+          else
+          {
+            print!  ( "." );
+          }
+        }
+        println!  ( "" );
+      }
+      Ok ( length )
+    }
+    else
+    {
+      Err ( "Length Out Of Bonds" )
+    }
+  }
+  else
+  {
+    Err ( "Offset Out Of Bonds" )
+  }
+}
+
 #[test]
 fn main () -> Result<(), &'static str>
 {
@@ -59,54 +139,12 @@ fn main () -> Result<(), &'static str>
       16,
     ).unwrap();
   
-  let bytesPerLine                      =   32;
-  let lines                             =   myAssembly.len() / bytesPerLine;
-  let rest                              =   myAssembly.len() % bytesPerLine;
-  for line in 0..lines
-  {
-    for offs                            in  0 .. bytesPerLine
-    {
-      print! ( "{:02x} ", myAssembly[ bytesPerLine * line + offs ] );
-    }
-    print! ( "| " );
-    for offs                            in  0 .. bytesPerLine
-    {
-      let char                          =   myAssembly[ bytesPerLine * line + offs ];
-      if  ( char >= 0x20)
-      &&  ( char <= 0x7e )
-      {
-        print! ( "{}", char as char );
-      }
-      else
-      {
-        print! ( "." );
-      }
-    }
-    println! ( "" );
-  }
-  for offs                              in 0 .. rest
-  {
-    print! ( "{:02x} ", myAssembly[ bytesPerLine * lines + offs ] );
-  }
-  for offs                              in 0 .. bytesPerLine - rest
-  {
-    print! ( "   " );
-  }
-  print! ( "| " );
-  for offs in 0 .. rest
-  {
-    let char                            =   myAssembly[ bytesPerLine * lines + offs ];
-    if  ( char >= 0x20)
-    &&  ( char <= 0x7e )
-    {
-      print! ( "{}", char as char );
-    }
-    else
-    {
-      print! ( "." );
-    }
-  }
-  println! ( "" );
+  hexDump
+  (
+    myAssembly,
+    0,              0,
+    32,
+  );
 
   let     myMasterBootRecord
   = MasterBootRecord

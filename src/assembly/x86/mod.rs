@@ -88,10 +88,12 @@ impl X86
   ) -> Result<Box<[u8]>, String>
   {
     let mut output: Vec<u8>             =   vec!();
-    for x in 0 .. 255
+
+    for x                               in  0 .. 1024
     {
-      output.push ( x );
+      output.push ( x as u8 );
     }
+    println! ( "size of buffer: {}", output.len() );
 
     if  ( architecture < InstructionSet::i386 )
     &&  (
