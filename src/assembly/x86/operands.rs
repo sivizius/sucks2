@@ -1,4 +1,5 @@
 // segment + registers + label + offset
+#[derive(Clone)]
 pub struct OperandMemory16
 {
   segment:                              u8,
@@ -8,6 +9,7 @@ pub struct OperandMemory16
 }
 
 // segment + base + scale * index + label + offset
+#[derive(Clone)]
 pub struct OperandMemory32
 {
   segment:                              u8,
@@ -18,11 +20,13 @@ pub struct OperandMemory32
   label:                                usize,
 }
 
+#[derive(Clone)]
 pub struct OperandExpression
 {
   
 }
 
+#[derive(Clone)]
 pub enum OperandType
 {
   Label,

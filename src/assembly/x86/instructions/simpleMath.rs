@@ -1,6 +1,7 @@
 use super::
 {
   Instruction,
+  InstructionAddress,
   InstructionPrefix,
   InstructionType,
   super::
@@ -66,7 +67,6 @@ impl X86
         self.line,
         mnemonic,
         size,
-        None,
         opcode,
         vec! ( dstThis, srcThis ),
       )
@@ -82,26 +82,27 @@ impl X86
     operandSize:                        &mut usize,
     addressSize:                        &mut usize,
     opcode:                             u8,
-  ) -> Result<(), String>
+  ) -> Result<Option<usize>, String>
   {
     if instruction.operands.len() == 2
     {
       match ( &instruction.operands [ 0 ], &instruction.operands [ 1 ] )
       {
-        ( OperandType::GeneralPurposeRegister ( dstRegister ),  OperandType::Constant               ( immediate ) )
+        ( OperandType::GeneralPurposeRegister ( mut dstRegister ),  OperandType::Constant               ( mut immediate ) )
         =>  {
-              if  ( *dstRegister == 0 )
+              if  ( dstRegister == 0 )
               &&  ( true || rand::random() )
               {
                 match instruction.size
                 {
                   1
                   =>  {
-                        if  *immediate >= -0x80
-                        &&  *immediate <=  0xff
+                        if  immediate >= -0x80
+                        &&  immediate <=  0xff
                         {
-                          instruction.setOpcode ( InstructionType::OneByte ( *dstRegister | 4  ) );
-                          Ok (())
+                          instruction.setOpcode   (         InstructionType::OneByte  ( opcode | dstRegister | 4  )   );
+                          instruction.setOperands ( vec!  ( OperandType::Byte         ( immediate                 ) ) );
+                          Ok ( Some ( 2 ) )
                         }
                         else
                         {
@@ -110,7 +111,7 @@ impl X86
                             format!
                             (
                               "Value Out of Bonds [-0x80,0xff] {} on Line {}",
-                              *immediate,
+                              immediate,
                               instruction.getLineNumber(),
                             )
                           )
@@ -118,14 +119,16 @@ impl X86
                       },
                   2
                   =>  {
-                        if  *immediate >= -0x8000
-                        &&  *immediate <=  0xffff
+                        if  immediate >= -0x8000
+                        &&  immediate <=  0xffff
                         {
                           if *operandSize == 32
                           {
                             instruction.addPrefix ( InstructionPrefix::OperandSizeOverride );
                           }
-                          Ok (())
+                          instruction.setOpcode   (         InstructionType::OneByte  ( opcode | dstRegister | 5  )   );
+                          instruction.setOperands ( vec!  ( OperandType::Word         ( immediate                 ) ) );
+                          Ok ( Some ( 3 ) )
                         }
                         else
                         {
@@ -134,7 +137,7 @@ impl X86
                             format!
                             (
                               "Value Out of Bonds [-0x8000,0xffff] {} on Line {}",
-                              *immediate,
+                              immediate,
                               instruction.getLineNumber(),
                             )
                           )
@@ -142,14 +145,16 @@ impl X86
                       },
                   4 if *architecture >= InstructionSet::i386
                   =>  {
-                        if  *immediate >= -0x80000000
-                        &&  *immediate <=  0xffffffff
+                        if  immediate >= -0x80000000
+                        &&  immediate <=  0xffffffff
                         {
                           if *operandSize == 16
                           {
-                            instruction.prefixes.push ( InstructionPrefix::OperandSizeOverride );
+                             instruction.addPrefix ( InstructionPrefix::OperandSizeOverride );
                           }
-                          Ok (())
+                          instruction.setOpcode   (         InstructionType::OneByte  ( opcode | dstRegister | 5  )   );
+                          instruction.setOperands ( vec!  ( OperandType::DWord        ( immediate                 ) ) );
+                          Ok ( Some ( 5 ) )
                         }
                         else
                         {
@@ -158,7 +163,7 @@ impl X86
                             format!
                             (
                               "Value Out of Bonds [-0x80000000,0xffffffff] {} on Line {}",
-                              *immediate,
+                              immediate,
                               instruction.getLineNumber(),
                             )
                           )
@@ -192,12 +197,12 @@ impl X86
               }
               else
               {
-                Ok (())
+                Ok ( None )
               }
             },
         ( OperandType::GeneralPurposeRegister ( dstRegister ),  OperandType::GeneralPurposeRegister ( srcRegister ) )
         =>  {
-              Ok (())
+              Ok ( None )
             },
         ( _, _ )
         =>  {
