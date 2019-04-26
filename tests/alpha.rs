@@ -1,6 +1,8 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 
+ #![allow(dead_code)]
+
 extern crate sucks2;
 use sucks2::
 {
@@ -29,9 +31,9 @@ use sucks2::
 fn hexDump
 (
   buffer:                               Box<[u8]>,
+  width:                                usize,
   offset:                               usize,
   mut length:                           usize,
-  width:                                usize,
 ) -> Result<usize, &'static str>
 {
   let   size                            =   buffer.len();
@@ -54,8 +56,8 @@ fn hexDump
         for pos                         in  0 .. width
         {
           let char                      =   buffer [ offset + width * line + pos ];
-          if  char > 0x1f
-          &&  char < 0x7f
+          if  ( char >= 0x20 && char <= 0x7e )
+          ||  ( char >= 0xa0 )
           {
             print!  ( "{}", char as char );
           }
@@ -73,7 +75,7 @@ fn hexDump
         {
           print!  ( "{:02x} ", buffer [ offset + width * lines + pos ] );
         }
-        for pos                         in  remainder .. width
+        for _                           in  remainder .. width
         {
           print!  ( "   " );
         }
@@ -81,8 +83,8 @@ fn hexDump
         for pos                         in  0 .. remainder
         {
           let char                      =   buffer [ offset + width * lines + pos ];
-          if  char > 0x1f
-          &&  char < 0x7f
+          if  ( char >= 0x20 && char <= 0x7e )
+          ||  ( char >= 0xa0 )
           {
             print!  ( "{}", char as char );
           }
@@ -139,11 +141,11 @@ fn main () -> Result<(), &'static str>
       16,
     ).unwrap();
   
-  hexDump
+  let _
+  = hexDump
   (
-    myAssembly,
+    myAssembly,     48,
     0,              0,
-    32,
   );
 
   let     myMasterBootRecord
