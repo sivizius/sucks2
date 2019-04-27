@@ -6,6 +6,7 @@ use super::
   InstructionType,
   super::
   {
+    AssemblyFeatures,
     InstructionSet,
     X86,
     operands::
@@ -81,6 +82,7 @@ impl X86
     architecture:                       &mut InstructionSet,
     operandSize:                        &mut usize,
     addressSize:                        &mut usize,
+    features:                           AssemblyFeatures,
     opcode:                             u8,
   ) -> Result<Option<usize>, String>
   {
@@ -91,7 +93,7 @@ impl X86
         ( OperandType::GeneralPurposeRegister ( mut dstRegister ),  OperandType::Constant               ( mut immediate ) )
         =>  {
               if  ( dstRegister == 0 )
-              &&  ( true || rand::random() )
+              && !( features.hazFeature ( AssemblyFeatures::RandomOpcodeSize ) && rand::random() )
               {
                 match instruction.size
                 {

@@ -20,6 +20,7 @@ pub use self::
 
 pub use super::
 {
+  AssemblyFeatures,
   InstructionSet,
 };
 
@@ -40,6 +41,7 @@ pub struct X86
   instructions:                         Vec<Instruction>,
   identifiers:                          HashMap<String, usize>,
   line:                                 usize,
+  features:                             AssemblyFeatures,
 }
 
 pub fn X86
@@ -51,6 +53,7 @@ pub fn X86
     instructions:                       vec!(),
     identifiers:                        HashMap::new(),
     line:                               0,
+    features:                           AssemblyFeatures::Default,
   }
 }
 
@@ -156,7 +159,8 @@ impl X86
                   &mut architecture,
                   &mut operandSize,
                   &mut addressSize,
-                  opcode
+                  self.features,
+                  opcode,
                 )?;
             },
         _
