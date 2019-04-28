@@ -171,75 +171,124 @@ impl X86
     //  and finally encode all teh parts
     for instruction                     in  self.instructions
     {
-      for part                          in  instruction.getParts()
+      let     parts                     =   instruction.getParts();
+      if parts.len() > 0
       {
-        match part
+        let mut hazLock                 =   false   as bool;
+        let mut hazRepeat               =   0       as u8;
+        let mut hazSegmentOverride      =   0       as u8;
+        let mut hazBranchHint           =   0       as u8;
+        let mut hazOperandSizeOverride  =   false   as bool;
+        let mut hazAddressSizeOverride  =   false   as bool;
+        let mut hazThreeByteXOP         =   false   as bool;
+        let mut hazTwoByteVEX           =   false   as bool;
+        let mut hazThreeByteVEX         =   false   as bool;
+        let mut hazREX                  =   0       as u8;
+        let mut hazTwoByteOpcode        =   false   as bool;
+        let mut theOpcode               =   0       as u8;
+        let mut hazModRegRM             =   None    as Option<u8>;
+        let mut hazSIBByte              =   None    as Option<u8>;
+        let mut lstImmediate            =   vec!()  as Vec<u8>;
+        for part                        in  parts
         {
-          InstructionPart::Lock                   =>  output.push ( 0xf0 ),
-          InstructionPart::Repeat                 =>  output.push ( 0xf3 ),
-          InstructionPart::RepeatNot              =>  output.push ( 0xf2 ),
-          InstructionPart::SegmentOverridePrefix  ( segment   )
-          =>  {
-                match segment
-                {
-                  0                               =>  output.push ( 0x26 ),  //  CS
-                  1                               =>  output.push ( 0x2e ),  //  SS
-                  2                               =>  output.push ( 0x36 ),  //  DS
-                  3                               =>  output.push ( 0x3e ),  //  ES
-                  4                               =>  output.push ( 0x64 ),  //  FS
-                  5                               =>  output.push ( 0x65 ),  //  GS
-                  _                               =>  return Err ( format! ( "Invalid Segment Value {}", segment ) ),
+          match part
+          {
+            InstructionPart::Lock                 =>  hazLock                   =   true,
+            InstructionPart::Repeat               =>  hazRepeat                 =   0xf3,
+            InstructionPart::RepeatNot            =>  hazRepeat                 =   0xf2,
+            InstructionPart::SegmentOverride      ( segment   )
+            =>  {
+                  match segment
+                  {
+                    0                             =>  hazSegmentOverride        =   0x26, //  CS
+                    1                             =>  hazSegmentOverride        =   0x2e, //  SS
+                    2                             =>  hazSegmentOverride        =   0x36, //  DS
+                    3                             =>  hazSegmentOverride        =   0x3e, //  ES
+                    4                             =>  hazSegmentOverride        =   0x64, //  FS
+                    5                             =>  hazSegmentOverride        =   0x65, //  GS
+                    _                             =>  return Err ( format! ( "Invalid Segment Value {}", segment ) ),
+                  }
+                },
+            InstructionPart::BranchTaken          =>  hazBranchHint             =   0x3e,
+            InstructionPart::BranchNotTaken       =>  hazBranchHint             =   0x2e,
+            InstructionPart::OperandSizeOverride  =>  hazOperandSizeOverride    =   true,
+            InstructionPart::AddressSizeOverride  =>  hazAddressSizeOverride    =   true,
+            InstructionPart::ThreeByteXOP         =>  hazThreeByteXOP           =   true,
+            InstructionPart::TwoByteVEX           =>  hazTwoByteVEX             =   true,
+            InstructionPart::ThreeByteVEX         =>  hazThreeByteVEX           =   true,
+            InstructionPart::REX                  ( value     )
+            =>  {
+                  hazREX                =   0x40 | ( value & 0x0f );
                 }
-              },
-          InstructionPart::BranchTaken            =>  output.push ( 0x3e ),
-          InstructionPart::BranchNotTaken         =>  output.push ( 0x2e ),
-          InstructionPart::OperandSizeOverride    =>  output.push ( 0x66 ),
-          InstructionPart::AddressSizeOverride    =>  output.push ( 0x67 ),
-          InstructionPart::ThreeByteXOP           =>  output.push ( 0x8f ),
-          InstructionPart::TwoByteVEX             =>  output.push ( 0xc5 ),
-          InstructionPart::ThreeByteVEX           =>  output.push ( 0xc4 ),
-          InstructionPart::REXPrefix              ( value     )
-          =>  output.push ( 0x40 | ( value & 0x0f ) ),
-          InstructionPart::OneByteInstruction     ( opcode    )
-          =>  {
-                output.push ( opcode  );
-              }
-          InstructionPart::TwoByteInstruction     ( opcode    )
-          =>  {
-                output.push ( 0x0f    );
-                output.push ( opcode  );
-              },
-          InstructionPart::ModRegRM               ( value     )
-          =>  output.push ( value ),
-          InstructionPart::SIBByte                ( value     )
-          =>  output.push ( value ),
-          InstructionPart::ImmediateByte          ( immediate )
-          =>  {
-                output.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
-              },
-          InstructionPart::ImmediateWord          ( immediate )
-          =>  {
-                output.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
-                output.push ( ( ( immediate >>  8 ) & 0xff ) as u8 );
-              },
-          InstructionPart::ImmediateDWord         ( immediate )
-          =>  {
-                output.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
-                output.push ( ( ( immediate >>  8 ) & 0xff ) as u8 );
-                output.push ( ( ( immediate >> 16 ) & 0xff ) as u8 );
-                output.push ( ( ( immediate >> 24 ) & 0xff ) as u8 );
-              },
-          InstructionPart::ImmediateQWord         ( immediate )
-          =>  {
-                output.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
-                output.push ( ( ( immediate >>  8 ) & 0xff ) as u8 );
-                output.push ( ( ( immediate >> 16 ) & 0xff ) as u8 );
-                output.push ( ( ( immediate >> 24 ) & 0xff ) as u8 );
-                output.push ( ( ( immediate >> 32 ) & 0xff ) as u8 );
-                output.push ( ( ( immediate >> 40 ) & 0xff ) as u8 );
-                output.push ( ( ( immediate >> 48 ) & 0xff ) as u8 );
-                output.push ( ( ( immediate >> 56 ) & 0xff ) as u8 );
-              },
+            InstructionPart::OneByteInstruction   ( opcode    )
+            =>  {
+                  theOpcode             =   opcode;
+                }
+            InstructionPart::TwoByteInstruction   ( opcode    )
+            =>  {
+                  hazTwoByteOpcode      =   true;
+                  theOpcode             =   opcode;
+                },
+            InstructionPart::ModRegRM             ( value     )
+            =>  {
+                  hazModRegRM           =   Some ( value );
+                },
+            InstructionPart::SIBByte              ( value     )
+            =>  {
+                  hazSIBByte            =   Some ( value );
+                },
+            InstructionPart::ImmediateByte        ( immediate )
+            =>  {
+                  lstImmediate.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
+                },
+            InstructionPart::ImmediateWord        ( immediate )
+            =>  {
+                  lstImmediate.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
+                  lstImmediate.push ( ( ( immediate >>  8 ) & 0xff ) as u8 );
+                },
+            InstructionPart::ImmediateDWord       ( immediate )
+            =>  {
+                  lstImmediate.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
+                  lstImmediate.push ( ( ( immediate >>  8 ) & 0xff ) as u8 );
+                  lstImmediate.push ( ( ( immediate >> 16 ) & 0xff ) as u8 );
+                  lstImmediate.push ( ( ( immediate >> 24 ) & 0xff ) as u8 );
+                },
+            InstructionPart::ImmediateQWord       ( immediate )
+            =>  {
+                  lstImmediate.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
+                  lstImmediate.push ( ( ( immediate >>  8 ) & 0xff ) as u8 );
+                  lstImmediate.push ( ( ( immediate >> 16 ) & 0xff ) as u8 );
+                  lstImmediate.push ( ( ( immediate >> 24 ) & 0xff ) as u8 );
+                  lstImmediate.push ( ( ( immediate >> 32 ) & 0xff ) as u8 );
+                  lstImmediate.push ( ( ( immediate >> 40 ) & 0xff ) as u8 );
+                  lstImmediate.push ( ( ( immediate >> 48 ) & 0xff ) as u8 );
+                  lstImmediate.push ( ( ( immediate >> 56 ) & 0xff ) as u8 );
+                },
+          }
+        }
+        if hazLock                        { output.push ( 0xf0                ); }
+        if hazRepeat                !=  0 { output.push ( hazRepeat           ); }
+        if hazSegmentOverride       !=  0 { output.push ( hazSegmentOverride  ); }
+        if hazBranchHint            !=  0 { output.push ( hazBranchHint       ); }
+        if hazOperandSizeOverride         { output.push ( 0x66                ); }
+        if hazAddressSizeOverride         { output.push ( 0x67                ); }
+        if hazThreeByteXOP                { output.push ( 0x8f                ); }
+        if hazTwoByteVEX                  { output.push ( 0xc5                ); }
+        if hazThreeByteVEX                { output.push ( 0xc4                ); }
+        if hazREX                   !=  0 { output.push ( hazREX              ); }
+        if hazTwoByteOpcode               { output.push ( 0x0f                ); }
+        output.push ( theOpcode );
+        if let Some ( value ) = hazModRegRM
+        {
+          output.push ( value );
+        }
+        if let Some ( value ) = hazSIBByte
+        {
+          output.push ( value );
+        }
+        for byte                          in  lstImmediate
+        {
+          output.push ( byte );
         }
       }
     }
