@@ -40,11 +40,12 @@ impl Instruction
     message:                            String,
   ) -> Result<Option<usize>, String>
   {
-    println!  ( "On Line {}:", self.line );
-    Self::printType ( &self.instruction );
+    print!  ( "Line {}: ", self.line );
+    //Self::printType ( &self.instruction );
+    print! ( "{:?}", &self.instruction );
     for   operand                       in  self.getOperands()
     {
-      operand.print ( self.size );
+      operand.print ( self.size, false );
     }
     println!  ( "" );
     Err ( message )
@@ -103,10 +104,11 @@ impl Instruction
     {
       print!  ( "( None ) " );
     }
-    Self::printType ( &self.instruction );
+    //Self::printType ( &self.instruction );
+    print! ( "{:?}", &self.instruction );
     for   operand                       in  self.getOperands()
     {
-      operand.print ( self.size );
+      operand.print ( self.size, false );
     }
     println!  ( "" );
   }
@@ -229,7 +231,7 @@ impl InstructionAddress
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub enum InstructionType
 {
   Label                                 ( usize ),

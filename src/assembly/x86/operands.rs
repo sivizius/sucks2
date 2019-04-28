@@ -1,8 +1,9 @@
 #[derive(Clone)]
 pub enum OperandType
 {
+  //  label and constant might be removed,
+  //  because it is just a trivial case of expressions
   Label                                 ( &'static str ),
-  //  constant might be removed, because it is just a trivial expression
   Constant                              ( i128 ),
   Expression
   {
@@ -39,12 +40,21 @@ impl OperandType
   (
     &self,
     size:                               usize,
+    hazREX:                             bool,
   )
   {
     match self
     {
+      OperandType::Label                  ( name )
+      =>  print!  ( " @{},", name ),
       OperandType::Constant               ( constant )
       =>  print!  ( " {},", constant ),
+      OperandType::Expression             {}
+      =>  print!  ( " ()," ),
+      OperandType::Memory16               { .. }
+      =>  print!  ( " […]," ),
+      OperandType::Memory32               { .. }
+      =>  print!  ( " […]," ),
       OperandType::GeneralPurposeRegister ( register )
       =>  {
             match size
@@ -52,103 +62,112 @@ impl OperandType
               1 =>  {
                       match register
                       {
-                         0  =>  print!  ( " al," ),
-                         1  =>  print!  ( " cl," ),
-                         2  =>  print!  ( " dl," ),
-                         3  =>  print!  ( " bl," ),
-                         //TODO haz REX?
-                         4  =>  print!  ( " ah," ),
-                         5  =>  print!  ( " ch," ),
-                         6  =>  print!  ( " dh," ),
-                         7  =>  print!  ( " bh," ),
-                         8  =>  print!  ( " r8b,"  ),
-                         9  =>  print!  ( " r9b,"  ),
-                        10  =>  print!  ( " r10b," ),
-                        11  =>  print!  ( " r11b," ),
-                        12  =>  print!  ( " r12b," ),
-                        13  =>  print!  ( " r13b," ),
-                        14  =>  print!  ( " r14b," ),
-                        15  =>  print!  ( " r15b," ),
-                        _   =>  print!  ( " ???," ),
+                        0 =>  print!  ( " al,"                        ),
+                        1 =>  print!  ( " cl,"                        ),
+                        2 =>  print!  ( " dl,"                        ),
+                        3 =>  print!  ( " bl,"                        ),
+                        4 if hazREX
+                        =>    print!  ( " ah,"                        ),
+                        4 =>  print!  ( " spl,"                       ),
+                        5 if hazREX
+                        =>    print!  ( " ch,"                        ),
+                        5 =>  print!  ( " bpl,"                       ),
+                        6 if hazREX
+                        =>    print!  ( " dh,"                        ),
+                        6 =>  print!  ( " sil,"                       ),
+                        7 if hazREX
+                        =>    print!  ( " bh,"                        ),
+                        7 =>  print!  ( " dil,"                       ),
+                        8 ... 15
+                        =>    print!  ( " r{}b,",           register, ),
+                        _
+                        =>    print!  ( " r{}b?,",          register, ),
                       }
                     },
               2 =>  {
                       match register
                       {
-                         0  =>  print!  ( " ax," ),
-                         1  =>  print!  ( " cx," ),
-                         2  =>  print!  ( " dx," ),
-                         3  =>  print!  ( " bx," ),
-                         4  =>  print!  ( " sp," ),
-                         5  =>  print!  ( " bp," ),
-                         6  =>  print!  ( " si," ),
-                         7  =>  print!  ( " di," ),
-                         8  =>  print!  ( " r8w,"  ),
-                         9  =>  print!  ( " r9w,"  ),
-                        10  =>  print!  ( " r10w," ),
-                        11  =>  print!  ( " r11w," ),
-                        12  =>  print!  ( " r12w," ),
-                        13  =>  print!  ( " r13w," ),
-                        14  =>  print!  ( " r14w," ),
-                        15  =>  print!  ( " r15w," ),
-                        _   =>  print!  ( " ???," ),
+                        0 =>  print!  ( " ax,"                        ),
+                        1 =>  print!  ( " cx,"                        ),
+                        2 =>  print!  ( " dx,"                        ),
+                        3 =>  print!  ( " bx,"                        ),
+                        4 =>  print!  ( " sp,"                        ),
+                        5 =>  print!  ( " bp,"                        ),
+                        6 =>  print!  ( " si,"                        ),
+                        7 =>  print!  ( " di,"                        ),
+                        8 ... 15
+                        =>    print!  ( " r{}w,",           register, ),
+                        _
+                        =>    print!  ( " r{}w?,",          register, ),
                       }
                     },
               4 =>  {
                       match register
                       {
-                         0  =>  print!  ( " eax," ),
-                         1  =>  print!  ( " ecx," ),
-                         2  =>  print!  ( " edx," ),
-                         3  =>  print!  ( " ebx," ),
-                         4  =>  print!  ( " esp," ),
-                         5  =>  print!  ( " ebp," ),
-                         6  =>  print!  ( " esi," ),
-                         7  =>  print!  ( " edi," ),
-                         8  =>  print!  ( " r8d,"  ),
-                         9  =>  print!  ( " r9d,"  ),
-                        10  =>  print!  ( " r10d," ),
-                        11  =>  print!  ( " r11d," ),
-                        12  =>  print!  ( " r12d," ),
-                        13  =>  print!  ( " r13d," ),
-                        14  =>  print!  ( " r14d," ),
-                        15  =>  print!  ( " r15d," ),
-                        _   =>  print!  ( " ???," ),
+                        0 =>  print!  ( " eax,"                       ),
+                        1 =>  print!  ( " ecx,"                       ),
+                        2 =>  print!  ( " edx,"                       ),
+                        3 =>  print!  ( " ebx,"                       ),
+                        4 =>  print!  ( " esp,"                       ),
+                        5 =>  print!  ( " ebp,"                       ),
+                        6 =>  print!  ( " esi,"                       ),
+                        7 =>  print!  ( " edi,"                       ),
+                        8 ... 15
+                        =>    print!  ( " r{}d,",           register, ),
+                        _
+                        =>    print!  ( " r{}d?,",          register, ),
                       }
                     },
               8 =>  {
                       match register
                       {
-                         0  =>  print!  ( " rax," ),
-                         1  =>  print!  ( " rcx," ),
-                         2  =>  print!  ( " rdx," ),
-                         3  =>  print!  ( " rbx," ),
-                         4  =>  print!  ( " rsp," ),
-                         5  =>  print!  ( " rbp," ),
-                         6  =>  print!  ( " rsi," ),
-                         7  =>  print!  ( " rdi," ),
-                         8  =>  print!  ( " r8,"  ),
-                         9  =>  print!  ( " r9,"  ),
-                        10  =>  print!  ( " r10," ),
-                        11  =>  print!  ( " r11," ),
-                        12  =>  print!  ( " r12," ),
-                        13  =>  print!  ( " r13," ),
-                        14  =>  print!  ( " r14," ),
-                        15  =>  print!  ( " r15," ),
-                        _   =>  print!  ( " ???," ),
+                        0 =>  print!  ( " rax,"                       ),
+                        1 =>  print!  ( " rcx,"                       ),
+                        2 =>  print!  ( " rdx,"                       ),
+                        3 =>  print!  ( " rbx,"                       ),
+                        4 =>  print!  ( " rsp,"                       ),
+                        5 =>  print!  ( " rbp,"                       ),
+                        6 =>  print!  ( " rsi,"                       ),
+                        7 =>  print!  ( " rdi,"                       ),
+                        8 ... 15
+                        =>    print!  ( " r{},",            register, ),
+                        _
+                        =>    print!  ( " r{}?,",           register, ),
                       }
                     },
-              _ =>  print!  (
-                              "[{}],",
-                              size,
-                            ),
+              _ =>            print!  ( "({})r{}?,",  size, register, ),
             }
           },
-      _
-      =>  print!  (
-                    "<{}>,",
-                    self.to_string(),
-                  ),
+      OperandType::SegmentRegister      ( register )
+      =>  {
+            match register
+            {
+              0 =>  print!  ( " cs,"              ),
+              1 =>  print!  ( " ss,"              ),
+              2 =>  print!  ( " ds,"              ),
+              3 =>  print!  ( " es,"              ),
+              4 =>  print!  ( " fs,"              ),
+              5 =>  print!  ( " gs,"              ),
+              _ =>  print!  ( " {}s,",  register  ),
+            }
+          },
+      OperandType::ControlRegister      ( register )
+      =>  print!  ( " cr{},", register ),
+      OperandType::DebugRegister        ( register )
+      =>  print!  ( " dr{},", register ),
+      OperandType::TestRegister         ( register )
+      =>  print!  ( " dr{},", register ),
+      OperandType::MulitMediaRegister   ( register )
+      =>  {
+            match size
+            {
+               8  =>  print!  ( " mm{},",             register ),
+              16  =>  print!  ( " xmm{},",            register ),
+              32  =>  print!  ( " ymm{},",            register ),
+              64  =>  print!  ( " zmm{},",            register ),
+              _   =>  print!  ( " ({})mm{}?,",  size, register ),
+            }
+          },
     }
   }
   pub fn to_string
