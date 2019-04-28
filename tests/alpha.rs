@@ -135,6 +135,7 @@ fn main () -> Result<(), &'static str>
     .add(X86::bl, 0x42)
     .add(X86::cx, 0x9000)
     .add(X86::dx, -1)
+    .iret()
     ;
 
   let mut myAssembly
@@ -144,7 +145,7 @@ fn main () -> Result<(), &'static str>
       16,
       16,
     ).unwrap();
-  
+
   let _
   = hexDump
   (

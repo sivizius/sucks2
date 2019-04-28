@@ -191,7 +191,7 @@ impl X86
                             instruction.size,
                           )
                         )
-                      },                  
+                      },
                 }
               }
               else
@@ -316,7 +316,7 @@ impl X86
                             instruction.size,
                           )
                         )
-                      },                  
+                      },
                 }
               }
             },

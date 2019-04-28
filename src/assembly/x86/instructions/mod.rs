@@ -1,4 +1,5 @@
 mod simpleMath;
+mod zeroOperands;
 
 pub use super::
 {
@@ -71,7 +72,7 @@ impl Instruction
     &mut  self,
     length:                             usize,
     value:                              i128
-  ) 
+  )
   {
     self.immediateLength                =   length;
     self.immediateValue                 =   value;
@@ -254,14 +255,43 @@ impl InstructionAddress
 pub enum InstructionType
 {
   Label                                 ( usize ),
-  ADD,
-  OR,
+  AAA,
+  AAS,
   ADC,
-  SBB,
+  ADD,
   AND,
-  SUB,
-  XOR,
+  CBW,
+  CLC,
+  CLD,
+  CLI,
+  CMC,
   CMP,
+  CMPSB,
+  CWD,
+  DAA,
+  DAS,
+  HLT,
+  INT3,
+  INTO,
+  IRET,
+  LAHF,
+  LODSB,
+  MOVSB,
+  OR,
+  POPF,
+  PUSHF,
+  SAHF,
+  SALC,
+  SBB,
+  SCASB,
+  STC,
+  STD,
+  STI,
+  STOSB,
+  SUB,
+  WAIT,
+  XLAT,
+  XOR,
 }
 
 pub const AddressSizeOverride:      u8  =   0x67;
