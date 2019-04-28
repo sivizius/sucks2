@@ -130,8 +130,11 @@ fn main () -> Result<(), &'static str>
   let     myCode
   = X86 ()
     .label("start")
-    .add(X86::ax, 0xffff)
-    .cmp(X86::ax, -1)
+    .add(X86::al, 0x23)
+    .add(X86::ax, 0x1337)
+    .add(X86::bl, 0x42)
+    .add(X86::cx, 0x9000)
+    .add(X86::dx, -1)
     ;
 
   let mut myAssembly

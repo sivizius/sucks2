@@ -2,7 +2,6 @@ use super::
 {
   Instruction,
   InstructionAddress,
-  InstructionPart,
   InstructionType,
   super::
   {
@@ -35,25 +34,6 @@ macro_rules!  declareSimpleMathInstruction
         {
           self.simpleMathInstruction ( $theInstruction, dst, src )
         }
-      }
-}
-
-macro_rules!  compileSimpleMathInstruction
-{
-  (
-    $theOpcode:expr
-  )
-  =>  {
-        length
-        = X86::compileSimpleMathInstruction
-          (
-            &mut instruction,
-            &mut architecture,
-            &mut operandSize,
-            &mut addressSize,
-            self.features,
-            $theOpcode,
-          )?;
       }
 }
 
@@ -109,6 +89,7 @@ impl X86
       {
         ( OperandType::GeneralPurposeRegister ( mut dstRegister ),  OperandType::Constant               ( mut immediate ) )
         =>  {
+              instruction.setImmediate                          ( instruction.size, immediate     );
               if  ( dstRegister == 0 )
               && !( features.hazFeature ( AssemblyFeatures::RandomOpcodeSize ) && rand::random() )
               {
@@ -119,8 +100,7 @@ impl X86
                         if  immediate >= -0x80
                         &&  immediate <=  0xff
                         {
-                          instruction.addPart ( InstructionPart::OneByteInstruction ( opcode | dstRegister | 4  ) );
-                          instruction.addPart ( InstructionPart::ImmediateByte      ( immediate                 ) );
+                          instruction.setOpcode                 ( opcode | dstRegister | 4        );
                           Ok ( Some ( 2 ) )
                         }
                         else
@@ -140,11 +120,10 @@ impl X86
                         if  immediate >= -0x8000
                         &&  immediate <=  0xffff
                         {
-                          instruction.addPart ( InstructionPart::OneByteInstruction ( opcode | dstRegister | 5  ) );
-                          instruction.addPart ( InstructionPart::ImmediateWord      ( immediate                 ) );
-                          if operandSize == 32
+                          instruction.setOpcode                 ( opcode | dstRegister | 5        );
+                          if operandSize == 4
                           {
-                            instruction.addPart ( InstructionPart::OperandSizeOverride );
+                            instruction.setOperandSizeOverride  ( true                            );
                             Ok ( Some ( 4 ) )
                           }
                           else
@@ -169,11 +148,10 @@ impl X86
                         if  immediate >= -0x80000000
                         &&  immediate <=  0xffffffff
                         {
-                          instruction.addPart ( InstructionPart::OneByteInstruction ( opcode | dstRegister | 5  ) );
-                          instruction.addPart ( InstructionPart::ImmediateDWord     ( immediate                 ) );
-                          if operandSize == 16
+                          instruction.setOpcode                 ( opcode | dstRegister | 5        );
+                          if operandSize == 2
                           {
-                            instruction.addPart ( InstructionPart::OperandSizeOverride );
+                            instruction.setOperandSizeOverride  ( true                            );
                             Ok ( Some ( 6 ) )
                           }
                           else
@@ -199,7 +177,7 @@ impl X86
                         (
                           format!
                           (
-                            "Operand Size not Specified on Line",
+                            "Operand Size not Specified",
                           )
                         )
                       },
@@ -213,12 +191,12 @@ impl X86
                             instruction.size,
                           )
                         )
-                      },
-                  
+                      },                  
                 }
               }
               else
               {
+                instruction.setModRegRM                         ( 0xc0  | opcode  | dstRegister   );
                 if instruction.size == 1
                 {
                   if  immediate >= -0x80
@@ -233,8 +211,7 @@ impl X86
                     }
                     //  0x80 and 0x82 are aliases, but 0x82 is invalid for 64 bit.
                     //  because 0x80 is the default encoding, some disassemblers fail with 0x82.
-                    instruction.addPart ( InstructionPart::OneByteInstruction ( opcode    | coin | 0  ) );
-                    instruction.addPart ( InstructionPart::ImmediateByte      ( immediate             ) );
+                    instruction.setOpcode                       ( 0x80 | coin                     );
                   }
                   else
                   {
@@ -248,11 +225,99 @@ impl X86
                             );
                   }
                 }
+                else  if  immediate >= -0x80
+                      &&  immediate <=  0x7f
+                      && !( features.hazFeature ( AssemblyFeatures::RandomOpcodeSize ) && rand::random() )
+                {
+                  instruction.setOpcode                         ( 0x83                            );
+                  instruction.setImmediateLength                ( 1                               );
+                }
                 else
                 {
-                  
+                  instruction.setOpcode                         ( 0x81                            );
                 }
-                Ok ( None )
+                match instruction.size
+                {
+                  1
+                  =>  {
+                        Ok ( Some ( 3 ) )
+                      },
+                  2
+                  =>  {
+                        if  immediate >= -0x8000
+                        &&  immediate <=  0xffff
+                        {
+                          if operandSize == 4
+                          {
+                            instruction.setOperandSizeOverride  ( true                            );
+                            Ok ( Some ( 5 ) )
+                          }
+                          else
+                          {
+                            Ok ( Some ( 4 ) )
+                          }
+                        }
+                        else
+                        {
+                          instruction.fail
+                          (
+                            format!
+                            (
+                              "Value Out of Bonds [-0x8000,0xffff] {}",
+                              immediate,
+                            )
+                          )
+                        }
+                      },
+                  4 if architecture >= InstructionSet::i386
+                  =>  {
+                        if  immediate >= -0x80000000
+                        &&  immediate <=  0xffffffff
+                        {
+                          if operandSize == 2
+                          {
+                            instruction.setOperandSizeOverride  ( true                            );
+                            Ok ( Some ( 7 ) )
+                          }
+                          else
+                          {
+                            Ok ( Some ( 6 ) )
+                          }
+                        }
+                        else
+                        {
+                          instruction.fail
+                          (
+                            format!
+                            (
+                              "Value Out of Bonds [-0x80000000,0xffffffff] {}",
+                              immediate,
+                            )
+                          )
+                        }
+                      },
+                  0
+                  =>  {
+                        instruction.fail
+                        (
+                          format!
+                          (
+                            "Operand Size not Specified",
+                          )
+                        )
+                      },
+                  _
+                  =>  {
+                        instruction.fail
+                        (
+                          format!
+                          (
+                            "Invalid Operand Size {}",
+                            instruction.size,
+                          )
+                        )
+                      },                  
+                }
               }
             },
         ( OperandType::GeneralPurposeRegister ( dstRegister ),  OperandType::GeneralPurposeRegister ( srcRegister ) )

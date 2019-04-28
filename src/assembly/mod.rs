@@ -38,19 +38,23 @@ bitflags!
   pub struct AssemblyFeatures:          usize
   {
     const None                          =   0b0000_0000_0000_0000_0000_0000_0000_0000;  //  No Features
+
     const RandomExecutionOrder          =   0b0000_0000_0000_0000_0000_0000_0000_0001;  //  Randomise Order of Execution by moving around instructions
     const RandomFunctionOrder           =   0b0000_0000_0000_0000_0000_0000_0000_0010;  //  Randomise Order of Functions
     const RandomHeapDataOrder           =   0b0000_0000_0000_0000_0000_0000_0000_0100;  //  Randomise Order of Heap Data
     const RandomJunkInstructions        =   0b0000_0000_0000_0000_0000_0000_0000_1000;  //  Add Random Junk Instructions
+
     const RandomOpcode                  =   0b0000_0000_0000_0000_0000_0000_0001_0000;  //  Randomise Opcodes without changing size
     const RandomOpcodeSize              =   0b0000_0000_0000_0000_0000_0000_0010_0000;  //  Randomise Opcodes by using longer instructions
     const RandomPaddingBytes            =   0b0000_0000_0000_0000_0000_0000_0100_0000;  //  Random Bytes instead of zeros for Padding
     const RandomPaddingLength           =   0b0000_0000_0000_0000_0000_0000_1000_0000;  //  Add Random Paddings of Data
+
     const RandomPrefixes                =   0b0000_0000_0000_0000_0000_0001_0000_0000;  //  Add Random Prefixes
     const RandomPrefixOrder             =   0b0000_0000_0000_0000_0000_0010_0000_0000;  //  Randomise Order of Prefixes, where possible
     const RandomRegisters               =   0b0000_0000_0000_0000_0000_0100_0000_0000;  //  Randomise used Registers
     const RandomStructureOrder          =   0b0000_0000_0000_0000_0000_1000_0000_0000;  //  Randomise Order of Structure elements
-    const Default                       =   0b0000_0000_0000_0000_0001_0000_0000_0000;  //  Default
+
+    const Default                       =   0b0000_0000_0000_0000_0000_0000_0011_0000;  //  Default
   }
 }
 
