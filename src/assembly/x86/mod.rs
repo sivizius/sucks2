@@ -10,6 +10,7 @@ pub use self::
   {
     Instruction,
     InstructionAddress,
+    InstructionPart,
     InstructionType,
   },
   operands::
@@ -70,7 +71,6 @@ impl X86
       Instruction
       (
         self.line,
-        "label",
         0,
         InstructionType::Label ( self.identifiers.len() ),
         vec!(),
@@ -112,12 +112,6 @@ impl X86
       InstructionAddress::None
     );
 
-    println!  ( "before" );
-    for mut instruction                 in  &mut self.instructions
-    {
-      instruction.print       ();
-    }
-
     let mut address
     = InstructionAddress::Some
       {
@@ -125,11 +119,11 @@ impl X86
         offs:                           0,
       };
 
-    println!  ( "after" );
+    //  for every instruction: try to compile
     for mut instruction                 in  &mut self.instructions
     {
       let mut length                    =   Some ( 0 );
-      match instruction.getOpcode()
+      match instruction.getType()
       {
         InstructionType::Label          ( identifier )
         =>  {
@@ -139,32 +133,28 @@ impl X86
               }
               else
               {
+                instruction.print();
                 return  Err
                         (
                           format!
                           (
-                            "Invalid Label Number ›{}‹ on Line {}",
+                            "Invalid Label Number ›{}‹",
                             identifier,
-                            instruction.getLineNumber()
                           )
                         );
               }
             },
-        InstructionType::SimpleMath     ( opcode )
-        =>  {
-              length
-              = X86::compileSimpleMathInstruction
-                (
-                  &mut instruction,
-                  &mut architecture,
-                  &mut operandSize,
-                  &mut addressSize,
-                  self.features,
-                  opcode,
-                )?;
-            },
+        InstructionType::ADD            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x00, )?,
+        InstructionType::OR             =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x08, )?,
+        InstructionType::ADC            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x10, )?,
+        InstructionType::SBB            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x18, )?,
+        InstructionType::AND            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x20, )?,
+        InstructionType::SUB            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x28, )?,
+        InstructionType::XOR            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x30, )?,
+        InstructionType::CMP            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x38, )?,
         _
         =>  {
+              instruction.print();
               return  Err
                       (
                         "Unexpected Instruction. This should not happen here!".to_string()
@@ -178,47 +168,68 @@ impl X86
       instruction.print       ();
     }
 
+    //  and finally encode all teh parts
     for instruction                     in  self.instructions
     {
-      match instruction.getOpcode()
+      for part                          in  instruction.getParts()
       {
-        InstructionType::Label          ( identifier )
-        =>  {
-              //just ignore
-            },
-        InstructionType::OneByte        ( opcode )
-        =>  {
-              output.push ( opcode );
-            },
-        _
-        =>  {
-              return  Err
-                      (
-                        "Unexpected Instruction. This should never happen here!".to_string()
-                      );
-            },
-      }
-      for operand                       in  instruction.getOperands()
-      {
-        match operand
+        match part
         {
-          OperandType::Byte             ( immediate )
+          InstructionPart::Lock                   =>  output.push ( 0xf0 ),
+          InstructionPart::Repeat                 =>  output.push ( 0xf3 ),
+          InstructionPart::RepeatNot              =>  output.push ( 0xf2 ),
+          InstructionPart::SegmentOverridePrefix  ( segment   )
+          =>  {
+                match segment
+                {
+                  0                               =>  output.push ( 0x26 ),  //  CS
+                  1                               =>  output.push ( 0x2e ),  //  SS
+                  2                               =>  output.push ( 0x36 ),  //  DS
+                  3                               =>  output.push ( 0x3e ),  //  ES
+                  4                               =>  output.push ( 0x64 ),  //  FS
+                  5                               =>  output.push ( 0x65 ),  //  GS
+                  _                               =>  return Err ( format! ( "Invalid Segment Value {}", segment ) ),
+                }
+              },
+          InstructionPart::BranchTaken            =>  output.push ( 0x3e ),
+          InstructionPart::BranchNotTaken         =>  output.push ( 0x2e ),
+          InstructionPart::OperandSizeOverride    =>  output.push ( 0x66 ),
+          InstructionPart::AddressSizeOverride    =>  output.push ( 0x67 ),
+          InstructionPart::ThreeByteXOP           =>  output.push ( 0x8f ),
+          InstructionPart::TwoByteVEX             =>  output.push ( 0xc5 ),
+          InstructionPart::ThreeByteVEX           =>  output.push ( 0xc4 ),
+          InstructionPart::REXPrefix              ( value     )
+          =>  output.push ( 0x40 | ( value & 0x0f ) ),
+          InstructionPart::OneByteInstruction     ( opcode    )
+          =>  {
+                output.push ( opcode  );
+              }
+          InstructionPart::TwoByteInstruction     ( opcode    )
+          =>  {
+                output.push ( 0x0f    );
+                output.push ( opcode  );
+              },
+          InstructionPart::ModRegRM               ( value     )
+          =>  output.push ( value ),
+          InstructionPart::SIBByte                ( value     )
+          =>  output.push ( value ),
+          InstructionPart::ImmediateByte          ( immediate )
           =>  {
                 output.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
               },
-          OperandType::Word             ( immediate )
+          InstructionPart::ImmediateWord          ( immediate )
           =>  {
                 output.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
                 output.push ( ( ( immediate >>  8 ) & 0xff ) as u8 );
               },
-          OperandType::DWord            ( immediate )
+          InstructionPart::ImmediateDWord         ( immediate )
           =>  {
                 output.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
                 output.push ( ( ( immediate >>  8 ) & 0xff ) as u8 );
                 output.push ( ( ( immediate >> 16 ) & 0xff ) as u8 );
                 output.push ( ( ( immediate >> 24 ) & 0xff ) as u8 );
               },
-          OperandType::QWord            ( immediate )
+          InstructionPart::ImmediateQWord         ( immediate )
           =>  {
                 output.push ( ( ( immediate >>  0 ) & 0xff ) as u8 );
                 output.push ( ( ( immediate >>  8 ) & 0xff ) as u8 );
@@ -228,17 +239,6 @@ impl X86
                 output.push ( ( ( immediate >> 40 ) & 0xff ) as u8 );
                 output.push ( ( ( immediate >> 48 ) & 0xff ) as u8 );
                 output.push ( ( ( immediate >> 56 ) & 0xff ) as u8 );
-              },
-          _
-          =>  {
-                return  Err
-                        (
-                          format!
-                          (
-                            "Unexpected Operand »{}«. This should never happen here!",
-                            operand.to_string(),
-                          )
-                        );
               },
         }
       }

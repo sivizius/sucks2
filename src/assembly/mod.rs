@@ -1,7 +1,7 @@
 pub mod x86;
 
 #[allow(non_camel_case_types)]
-#[derive(PartialEq,PartialOrd)]
+#[derive(Copy,Clone,PartialEq,PartialOrd)]
 pub enum InstructionSet
 {
   i8086                                 =   0x8600,
@@ -11,6 +11,7 @@ pub enum InstructionSet
   i486,
   Pentium,
   Pentium2,
+  amd64,
 }
 
 pub fn InstructionSet

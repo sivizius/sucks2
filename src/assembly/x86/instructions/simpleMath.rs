@@ -2,7 +2,7 @@ use super::
 {
   Instruction,
   InstructionAddress,
-  InstructionPrefix,
+  InstructionPart,
   InstructionType,
   super::
   {
@@ -19,11 +19,11 @@ use super::
 
 use rand;
 
-macro_rules! simpleMathInstruction
+macro_rules!  declareSimpleMathInstruction
 {
   (
     $theName:ident,
-    $theOpcode:expr
+    $theInstruction:expr
   )
   =>  {
         pub fn $theName
@@ -33,42 +33,59 @@ macro_rules! simpleMathInstruction
           src:                          impl Operand,
         ) -> Self
         {
-          self.simpleMathInstruction ( InstructionType::SimpleMath ( $theOpcode ), stringify! ( $theName ), dst, src )
+          self.simpleMathInstruction ( $theInstruction, dst, src )
         }
+      }
+}
+
+macro_rules!  compileSimpleMathInstruction
+{
+  (
+    $theOpcode:expr
+  )
+  =>  {
+        length
+        = X86::compileSimpleMathInstruction
+          (
+            &mut instruction,
+            &mut architecture,
+            &mut operandSize,
+            &mut addressSize,
+            self.features,
+            $theOpcode,
+          )?;
       }
 }
 
 impl X86
 {
-  simpleMathInstruction!  ( add,  0x00 );
-  simpleMathInstruction!  ( or,   0x08 );
-  simpleMathInstruction!  ( adc,  0x10 );
-  simpleMathInstruction!  ( sbb,  0x18 );
-  simpleMathInstruction!  ( and,  0x20 );
-  simpleMathInstruction!  ( sub,  0x28 );
-  simpleMathInstruction!  ( xor,  0x30 );
-  simpleMathInstruction!  ( cmp,  0x38 );
+  declareSimpleMathInstruction! ( add,  InstructionType::ADD  );
+  declareSimpleMathInstruction! ( or,   InstructionType::OR   );
+  declareSimpleMathInstruction! ( adc,  InstructionType::ADC  );
+  declareSimpleMathInstruction! ( sbb,  InstructionType::SBB  );
+  declareSimpleMathInstruction! ( and,  InstructionType::AND  );
+  declareSimpleMathInstruction! ( sub,  InstructionType::SUB  );
+  declareSimpleMathInstruction! ( xor,  InstructionType::XOR  );
+  declareSimpleMathInstruction! ( cmp,  InstructionType::CMP  );
 
   fn simpleMathInstruction
   (
     mut self,
-    opcode:                             InstructionType,
-    mnemonic:                           &'static str,
+    instruction:                        InstructionType,
     dst:                                impl Operand,
     src:                                impl Operand,
   ) -> Self
   {
     let ( dstThis, dstSize )            =   dst.this();
     let ( srcThis, srcSize )            =   src.this();
-    let size: usize                     =   dstSize | srcSize;
+    let size                            =   ( dstSize | srcSize ) as usize;
     self.instructions.push
     (
       Instruction
       (
         self.line,
-        mnemonic,
         size,
-        opcode,
+        instruction,
         vec! ( dstThis, srcThis ),
       )
     );
@@ -79,9 +96,9 @@ impl X86
   pub(in super::super) fn compileSimpleMathInstruction
   (
     instruction:                        &mut Instruction,
-    architecture:                       &mut InstructionSet,
-    operandSize:                        &mut usize,
-    addressSize:                        &mut usize,
+    architecture:                       InstructionSet,
+    operandSize:                        usize,
+    addressSize:                        usize,
     features:                           AssemblyFeatures,
     opcode:                             u8,
   ) -> Result<Option<usize>, String>
@@ -102,19 +119,18 @@ impl X86
                         if  immediate >= -0x80
                         &&  immediate <=  0xff
                         {
-                          instruction.setOpcode   (         InstructionType::OneByte  ( opcode | dstRegister | 4  )   );
-                          instruction.setOperands ( vec!  ( OperandType::Byte         ( immediate                 ) ) );
+                          instruction.addPart ( InstructionPart::OneByteInstruction ( opcode | dstRegister | 4  ) );
+                          instruction.addPart ( InstructionPart::ImmediateByte      ( immediate                 ) );
                           Ok ( Some ( 2 ) )
                         }
                         else
                         {
-                          Err
+                          instruction.fail
                           (
                             format!
                             (
-                              "Value Out of Bonds [-0x80,0xff] {} on Line {}",
+                              "Value Out of Bonds [-0x80,0xff]: {}",
                               immediate,
-                              instruction.getLineNumber(),
                             )
                           )
                         }
@@ -124,73 +140,77 @@ impl X86
                         if  immediate >= -0x8000
                         &&  immediate <=  0xffff
                         {
-                          if *operandSize == 32
+                          instruction.addPart ( InstructionPart::OneByteInstruction ( opcode | dstRegister | 5  ) );
+                          instruction.addPart ( InstructionPart::ImmediateWord      ( immediate                 ) );
+                          if operandSize == 32
                           {
-                            instruction.addPrefix ( InstructionPrefix::OperandSizeOverride );
+                            instruction.addPart ( InstructionPart::OperandSizeOverride );
+                            Ok ( Some ( 4 ) )
                           }
-                          instruction.setOpcode   (         InstructionType::OneByte  ( opcode | dstRegister | 5  )   );
-                          instruction.setOperands ( vec!  ( OperandType::Word         ( immediate                 ) ) );
-                          Ok ( Some ( 3 ) )
+                          else
+                          {
+                            Ok ( Some ( 3 ) )
+                          }
                         }
                         else
                         {
-                          Err
+                          instruction.fail
                           (
                             format!
                             (
-                              "Value Out of Bonds [-0x8000,0xffff] {} on Line {}",
+                              "Value Out of Bonds [-0x8000,0xffff] {}",
                               immediate,
-                              instruction.getLineNumber(),
                             )
                           )
                         }
                       },
-                  4 if *architecture >= InstructionSet::i386
+                  4 if architecture >= InstructionSet::i386
                   =>  {
                         if  immediate >= -0x80000000
                         &&  immediate <=  0xffffffff
                         {
-                          if *operandSize == 16
+                          instruction.addPart ( InstructionPart::OneByteInstruction ( opcode | dstRegister | 5  ) );
+                          instruction.addPart ( InstructionPart::ImmediateDWord     ( immediate                 ) );
+                          if operandSize == 16
                           {
-                             instruction.addPrefix ( InstructionPrefix::OperandSizeOverride );
+                            instruction.addPart ( InstructionPart::OperandSizeOverride );
+                            Ok ( Some ( 6 ) )
                           }
-                          instruction.setOpcode   (         InstructionType::OneByte  ( opcode | dstRegister | 5  )   );
-                          instruction.setOperands ( vec!  ( OperandType::DWord        ( immediate                 ) ) );
-                          Ok ( Some ( 5 ) )
+                          else
+                          {
+                            Ok ( Some ( 5 ) )
+                          }
                         }
                         else
                         {
-                          Err
+                          instruction.fail
                           (
                             format!
                             (
-                              "Value Out of Bonds [-0x80000000,0xffffffff] {} on Line {}",
+                              "Value Out of Bonds [-0x80000000,0xffffffff] {}",
                               immediate,
-                              instruction.getLineNumber(),
                             )
                           )
                         }
                       },
                   0
                   =>  {
-                        Err
+                        instruction.fail
                         (
                           format!
                           (
-                            "Operand Size not Specified on Line {}",
-                            instruction.getLineNumber(),
+                            "Operand Size not Specified on Line",
                           )
                         )
                       },
                   _
                   =>  {
-                        Err
+                        instruction.fail
                         (
                           format!
                           (
-                            "Invalid Operand Size {} on Line {}",
+                            "Invalid Operand Size {}",
                             instruction.size,
-                            instruction.getLineNumber(),
                           )
                         )
                       },
@@ -199,6 +219,39 @@ impl X86
               }
               else
               {
+                if instruction.size == 1
+                {
+                  if  immediate >= -0x80
+                  &&  immediate <=  0xff
+                  {
+                    let mut coin        =   0;
+                    if  architecture < InstructionSet::amd64
+                    &&  features.hazFeature ( AssemblyFeatures::RandomOpcode )
+                    &&  rand::random()
+                    {
+                      coin              =   2;
+                    }
+                    //  0x80 and 0x82 are aliases, but 0x82 is invalid for 64 bit.
+                    //  because 0x80 is the default encoding, some disassemblers fail with 0x82.
+                    instruction.addPart ( InstructionPart::OneByteInstruction ( opcode    | coin | 0  ) );
+                    instruction.addPart ( InstructionPart::ImmediateByte      ( immediate             ) );
+                  }
+                  else
+                  {
+                    return  instruction.fail
+                            (
+                              format!
+                              (
+                                "Value Out of Bonds [-0x80,0xff] {}",
+                                immediate,
+                              )
+                            );
+                  }
+                }
+                else
+                {
+                  
+                }
                 Ok ( None )
               }
             },
@@ -208,15 +261,13 @@ impl X86
             },
         ( _, _ )
         =>  {
-              Err
+              instruction.fail
               (
                 format!
                 (
-                  "Invalid Combination of Arguments ›{}‹, ›{}‹ for Instruction ›{}‹ on Line {}",
+                  "Invalid Combination of Arguments ›{}‹, ›{}‹",
                   instruction.operands [ 0 ].to_string(),
                   instruction.operands [ 1 ].to_string(),
-                  instruction.getMnemonic(),
-                  instruction.getLineNumber(),
                 )
               )
             },
@@ -224,14 +275,12 @@ impl X86
     }
     else
     {
-      Err
+      instruction.fail
       (
         format!
         (
-          "Instruction ›{}‹ Must Take Exactly 2 Arguments {} on Line {}",
-          instruction.getMnemonic(),
+          "Instruction Must Take Exactly 2 Arguments, got {}",
           instruction.operands.len(),
-          instruction.getLineNumber(),
         )
       )
     }
