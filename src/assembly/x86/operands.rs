@@ -1,13 +1,21 @@
+use super::
+{
+  expressions::
+  {
+    Expression,
+    ExpressionToken,
+  },
+};
+
 #[derive(Clone)]
 pub enum OperandType
 {
-  //  label and constant might be removed,
-  //  because it is just a trivial case of expressions
+  //  label might be removed, because it is just a abstract constant
   Label                                 ( &'static str ),
+
+  //  expressions cannot be used directly and have to be resolved to a less abstract operand type
+  Expression                            ( Expression ),
   Constant                              ( i128 ),
-  Expression
-  {
-  },
   // segment + base + scale * index + label + offset
   Memory16
   {
@@ -49,8 +57,8 @@ impl OperandType
       =>  print!  ( " @{},", name ),
       OperandType::Constant               ( constant )
       =>  print!  ( " {},", constant ),
-      OperandType::Expression             {}
-      =>  print!  ( " ()," ),
+      OperandType::Expression             ( expression )
+      =>  print!  ( " {:?},", expression ),
       OperandType::Memory16               { .. }
       =>  print!  ( " […]," ),
       OperandType::Memory32               { .. }
@@ -179,7 +187,7 @@ impl OperandType
     {
       OperandType::Label                ( _ )   =>  { "Label"                     },
       OperandType::Constant             ( _ )   =>  { "Constant"                  },
-      OperandType::Expression           { .. }  =>  { "Expression"                },
+      OperandType::Expression           ( _ )   =>  { "Expression"                },
       OperandType::Memory16             { .. }  =>  { "Memory (16 bit)"           },
       OperandType::Memory32             { .. }  =>  { "Memory (32 bit)"           },
       OperandType::GeneralPurposeRegister

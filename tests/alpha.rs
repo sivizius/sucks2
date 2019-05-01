@@ -1,8 +1,8 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
+#![allow(dead_code)]
 
- #![allow(dead_code)]
-
+#[macro_use]
 extern crate sucks2;
 use sucks2::
 {
@@ -12,6 +12,11 @@ use sucks2::
     x86::
     {
       X86,
+      expressions::
+      {
+        Expression,
+        ExpressionToken,
+      },
     },
   },
   formats::
@@ -108,6 +113,7 @@ fn hexDump
   }
 }
 
+
 #[test]
 fn main () -> Result<(), &'static str>
 {
@@ -129,13 +135,13 @@ fn main () -> Result<(), &'static str>
 
   let     myCode
   = X86 ()
-    .label("start")
-    .add(X86::al, 0x23)
-    .add(X86::ax, 0x1337)
-    .add(X86::bl, 0x42)
-    .add(X86::cx, 0x9000)
-    .add(X86::dx, -1)
-    .iret()
+    .label( "start"                                     )
+    .add  ( X86::al,  0x23                              )
+    .add  ( X86::ax,  0x1337                            )
+    .add  ( X86::bl,  0x42                              )
+    .add  ( X86::cx,  0x9000                            )
+    .add  ( X86::dx,  expression! ( 1 1 + 2 * 0x1337  ) )
+    .iret (                                             )
     ;
 
   let mut myAssembly
@@ -163,6 +169,5 @@ fn main () -> Result<(), &'static str>
     "build/alpha.bin",
     myMasterBootRecord
   );
-
   Ok(())
 }

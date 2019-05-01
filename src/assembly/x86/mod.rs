@@ -1,7 +1,7 @@
 #[macro_use]
+pub mod expressions;
 mod instructions;
 mod operands;
-#[macro_use]
 mod registers;
 
 pub use self::
@@ -142,72 +142,84 @@ impl X86
     for mut instruction                 in  &mut self.instructions
     {
       let mut length                    =   Some ( 0 );
-      match instruction.getType()
+      for operand                       in  instruction.getOperandRefs()
       {
-        InstructionType::Label          ( identifier )
-        =>  {
-              if identifier < self.identifiers.len()
-              {
-                labels[ identifier ]    =   address;
-              }
-              else
-              {
+        if let OperandType::Expression ( expression ) = operand
+        {
+          let ( newLength, newOperand ) =   expression.solve();
+          length                        =   newLength;
+          *operand                      =   newOperand;
+        }
+      }
+      if length == Some ( 0 )
+      {
+        match instruction.getType()
+        {
+          InstructionType::Label          ( identifier )
+          =>  {
+                if identifier < self.identifiers.len()
+                {
+                  labels[ identifier ]    =   address;
+                }
+                else
+                {
+                  instruction.print();
+                  return  Err
+                          (
+                            format!
+                            (
+                              "Invalid Label Number ›{}‹",
+                              identifier,
+                            )
+                          );
+                }
+              },
+          InstructionType::AAA          =>  { instruction.setOpcode ( 0x37  );  length  = Some  ( 1 ) },
+          InstructionType::AAS          =>  { instruction.setOpcode ( 0x3f  );  length  = Some  ( 1 ) },
+          InstructionType::ADC          =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x10, )?,
+          InstructionType::ADD          =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x00, )?,
+          InstructionType::AND          =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x20, )?,
+          InstructionType::CBW          =>  { instruction.setOpcode ( 0x98  );  length  = Some  ( 1 ) },
+          InstructionType::CLC          =>  { instruction.setOpcode ( 0xf8  );  length  = Some  ( 1 ) },
+          InstructionType::CLD          =>  { instruction.setOpcode ( 0xfc  );  length  = Some  ( 1 ) },
+          InstructionType::CLI          =>  { instruction.setOpcode ( 0xfa  );  length  = Some  ( 1 ) },
+          InstructionType::CMC          =>  { instruction.setOpcode ( 0xf5  );  length  = Some  ( 1 ) },
+          InstructionType::CMP          =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x38, )?,
+          InstructionType::CMPSB        =>  { instruction.setOpcode ( 0xa6  );  length  = Some  ( 1 ) },
+          InstructionType::CWD          =>  { instruction.setOpcode ( 0x99  );  length  = Some  ( 1 ) },
+          InstructionType::DAA          =>  { instruction.setOpcode ( 0x27  );  length  = Some  ( 1 ) },
+          InstructionType::DAS          =>  { instruction.setOpcode ( 0x2f  );  length  = Some  ( 1 ) },
+          InstructionType::HLT          =>  { instruction.setOpcode ( 0xf4  );  length  = Some  ( 1 ) },
+          InstructionType::INT3         =>  { instruction.setOpcode ( 0xcc  );  length  = Some  ( 1 ) },
+          InstructionType::INTO         =>  { instruction.setOpcode ( 0xce  );  length  = Some  ( 1 ) },
+          InstructionType::IRET         =>  { instruction.setOpcode ( 0xcf  );  length  = Some  ( 1 ) },
+          InstructionType::LAHF         =>  { instruction.setOpcode ( 0x9f  );  length  = Some  ( 1 ) },
+          InstructionType::LODSB        =>  { instruction.setOpcode ( 0xac  );  length  = Some  ( 1 ) },
+          InstructionType::MOVSB        =>  { instruction.setOpcode ( 0xa4  );  length  = Some  ( 1 ) },
+          InstructionType::OR           =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x08, )?,
+          InstructionType::POPF         =>  { instruction.setOpcode ( 0x9d  );  length  = Some  ( 1 ) },
+          InstructionType::PUSHF        =>  { instruction.setOpcode ( 0x9c  );  length  = Some  ( 1 ) },
+          InstructionType::SAHF         =>  { instruction.setOpcode ( 0x9e  );  length  = Some  ( 1 ) },
+          InstructionType::SALC         =>  { instruction.setOpcode ( 0xd6  );  length  = Some  ( 1 ) },
+          InstructionType::SBB          =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x18, )?,
+          InstructionType::SCASB        =>  { instruction.setOpcode ( 0xae  );  length  = Some  ( 1 ) },
+          InstructionType::STC          =>  { instruction.setOpcode ( 0xf9  );  length  = Some  ( 1 ) },
+          InstructionType::STD          =>  { instruction.setOpcode ( 0xfd  );  length  = Some  ( 1 ) },
+          InstructionType::STI          =>  { instruction.setOpcode ( 0xfb  );  length  = Some  ( 1 ) },
+          InstructionType::STOSB        =>  { instruction.setOpcode ( 0xaa  );  length  = Some  ( 1 ) },
+          InstructionType::SUB          =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x28, )?,
+          InstructionType::WAIT         =>  { instruction.setOpcode ( 0xdb  );  length  = Some  ( 1 ) },
+          InstructionType::XLAT         =>  { instruction.setOpcode ( 0xd7  );  length  = Some  ( 1 ) },
+          InstructionType::XOR          =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x30, )?,
+          _
+          =>  {
                 instruction.print();
                 return  Err
                         (
-                          format!
-                          (
-                            "Invalid Label Number ›{}‹",
-                            identifier,
-                          )
+                          "Unexpected Instruction. This should not happen here!".to_string()
                         );
-              }
-            },
-        InstructionType::AAA            =>  { instruction.setOpcode ( 0x37  );  length  = Some  ( 1 ) },
-        InstructionType::AAS            =>  { instruction.setOpcode ( 0x3f  );  length  = Some  ( 1 ) },
-        InstructionType::ADC            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x10, )?,
-        InstructionType::ADD            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x00, )?,
-        InstructionType::AND            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x20, )?,
-        InstructionType::CBW            =>  { instruction.setOpcode ( 0x98  );  length  = Some  ( 1 ) },
-        InstructionType::CLC            =>  { instruction.setOpcode ( 0xf8  );  length  = Some  ( 1 ) },
-        InstructionType::CLD            =>  { instruction.setOpcode ( 0xfc  );  length  = Some  ( 1 ) },
-        InstructionType::CLI            =>  { instruction.setOpcode ( 0xfa  );  length  = Some  ( 1 ) },
-        InstructionType::CMC            =>  { instruction.setOpcode ( 0xf5  );  length  = Some  ( 1 ) },
-        InstructionType::CMP            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x38, )?,
-        InstructionType::CMPSB          =>  { instruction.setOpcode ( 0xa6  );  length  = Some  ( 1 ) },
-        InstructionType::CWD            =>  { instruction.setOpcode ( 0x99  );  length  = Some  ( 1 ) },
-        InstructionType::DAA            =>  { instruction.setOpcode ( 0x27  );  length  = Some  ( 1 ) },
-        InstructionType::DAS            =>  { instruction.setOpcode ( 0x2f  );  length  = Some  ( 1 ) },
-        InstructionType::HLT            =>  { instruction.setOpcode ( 0xf4  );  length  = Some  ( 1 ) },
-        InstructionType::INT3           =>  { instruction.setOpcode ( 0xcc  );  length  = Some  ( 1 ) },
-        InstructionType::INTO           =>  { instruction.setOpcode ( 0xce  );  length  = Some  ( 1 ) },
-        InstructionType::IRET           =>  { instruction.setOpcode ( 0xcf  );  length  = Some  ( 1 ) },
-        InstructionType::LAHF           =>  { instruction.setOpcode ( 0x9f  );  length  = Some  ( 1 ) },
-        InstructionType::LODSB          =>  { instruction.setOpcode ( 0xac  );  length  = Some  ( 1 ) },
-        InstructionType::MOVSB          =>  { instruction.setOpcode ( 0xa4  );  length  = Some  ( 1 ) },
-        InstructionType::OR             =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x08, )?,
-        InstructionType::POPF           =>  { instruction.setOpcode ( 0x9d  );  length  = Some  ( 1 ) },
-        InstructionType::PUSHF          =>  { instruction.setOpcode ( 0x9c  );  length  = Some  ( 1 ) },
-        InstructionType::SAHF           =>  { instruction.setOpcode ( 0x9e  );  length  = Some  ( 1 ) },
-        InstructionType::SALC           =>  { instruction.setOpcode ( 0xd6  );  length  = Some  ( 1 ) },
-        InstructionType::SBB            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x18, )?,
-        InstructionType::SCASB          =>  { instruction.setOpcode ( 0xae  );  length  = Some  ( 1 ) },
-        InstructionType::STC            =>  { instruction.setOpcode ( 0xf9  );  length  = Some  ( 1 ) },
-        InstructionType::STD            =>  { instruction.setOpcode ( 0xfd  );  length  = Some  ( 1 ) },
-        InstructionType::STI            =>  { instruction.setOpcode ( 0xfb  );  length  = Some  ( 1 ) },
-        InstructionType::STOSB          =>  { instruction.setOpcode ( 0xaa  );  length  = Some  ( 1 ) },
-        InstructionType::SUB            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x28, )?,
-        InstructionType::WAIT           =>  { instruction.setOpcode ( 0xdb  );  length  = Some  ( 1 ) },
-        InstructionType::XLAT           =>  { instruction.setOpcode ( 0xd7  );  length  = Some  ( 1 ) },
-        InstructionType::XOR            =>  length  = X86::compileSimpleMathInstruction ( &mut instruction, architecture, operandSize,  addressSize,  self.features,  0x30, )?,
-        _
-        =>  {
-              instruction.print();
-              return  Err
-                      (
-                        "Unexpected Instruction. This should not happen here!".to_string()
-                      );
-            },
+              },
+        }
       }
 
       instruction.setAddress  ( address );

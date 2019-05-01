@@ -8,7 +8,6 @@ use super::
   },
 };
 
-
 pub struct    GeneralPurposeRegister
 {
   pub size:                             usize,

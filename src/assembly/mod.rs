@@ -54,7 +54,7 @@ bitflags!
     const RandomRegisters               =   0b0000_0000_0000_0000_0000_0100_0000_0000;  //  Randomise used Registers
     const RandomStructureOrder          =   0b0000_0000_0000_0000_0000_1000_0000_0000;  //  Randomise Order of Structure elements
 
-    const Default                       =   0b0000_0000_0000_0000_0000_0000_0011_0000;  //  Default
+    const Default                       =   0b0000_0000_0000_0000_0000_0000_0000_0000;  //  Default
   }
 }
 

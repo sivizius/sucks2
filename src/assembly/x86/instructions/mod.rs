@@ -40,29 +40,30 @@ pub struct Instruction
 
 impl Instruction
 {
-  pub fn getBranchHint                  ( &self ) ->  u8                              { self.theBranchHint                                }
-  pub fn getImmediate                   ( &self ) ->  ( usize, i128 )                 { ( self.immediateLength, self.immediateValue )     }
-  pub fn getLineNumber                  ( &self ) ->  usize                           { self.line                                         }
-  pub fn getModRegRM                    ( &self ) ->  Option<u8>                      { self.theModRegRM                                  }
-  pub fn getOpcode                      ( &self ) ->  Option<u8>                      { self.theOpcode                                    }
-  pub fn getOperands                    ( &self ) ->  Vec<OperandType>                { self.operands.clone()                             }
-  pub fn getRepeat                      ( &self ) ->  u8                              { self.theRepeat                                    }
-  pub fn getREX                         ( &self ) ->  u8                              { self.theREX                                       }
-  pub fn getSegmentOverride             ( &self ) ->  u8                              { self.theSegmentOverride                           }
-  pub fn getSIBByte                     ( &self ) ->  Option<u8>                      { self.theSIBByte                                   }
-  pub fn getType                        ( &self ) ->  InstructionType                 { self.instruction.clone()                          }
+  pub fn getBranchHint                  ( &self )     ->  u8                          { self.theBranchHint                                }
+  pub fn getImmediate                   ( &self )     ->  ( usize, i128 )             { ( self.immediateLength, self.immediateValue )     }
+  pub fn getLineNumber                  ( &self )     ->  usize                       { self.line                                         }
+  pub fn getModRegRM                    ( &self )     ->  Option<u8>                  { self.theModRegRM                                  }
+  pub fn getOpcode                      ( &self )     ->  Option<u8>                  { self.theOpcode                                    }
+  pub fn getOperands                    ( &self )     ->  Vec<OperandType>            { self.operands.clone()                             }
+  pub fn getOperandRefs                 ( &mut self ) ->  &mut Vec<OperandType>       { &mut self.operands                                }
+  pub fn getRepeat                      ( &self )     ->  u8                          { self.theRepeat                                    }
+  pub fn getREX                         ( &self )     ->  u8                          { self.theREX                                       }
+  pub fn getSegmentOverride             ( &self )     ->  u8                          { self.theSegmentOverride                           }
+  pub fn getSIBByte                     ( &self )     ->  Option<u8>                  { self.theSIBByte                                   }
+  pub fn getType                        ( &self )     ->  InstructionType             { self.instruction.clone()                          }
 
-  pub fn hazAddressSizeOverride         ( &self ) ->  bool                            { self.hazAddressSizeOverride                       }
-  pub fn hazBranchHint                  ( &self ) ->  bool                            { self.theBranchHint          !=  0                 }
-  pub fn hazLock                        ( &self ) ->  bool                            { self.hazLock                                      }
-  pub fn hazOperandSizeOverride         ( &self ) ->  bool                            { self.hazOperandSizeOverride                       }
-  pub fn hazRepeat                      ( &self ) ->  bool                            { self.theRepeat              !=  0                 }
-  pub fn hazREX                         ( &self ) ->  bool                            { self.theREX                 !=  0                 }
-  pub fn hazSegmentOverride             ( &self ) ->  bool                            { self.theSegmentOverride     !=  0                 }
-  pub fn hazThreeByteVEX                ( &self ) ->  bool                            { self.hazThreeByteVEX                              }
-  pub fn hazThreeByteXOP                ( &self ) ->  bool                            { self.hazThreeByteXOP                              }
-  pub fn hazTwoByteOpcode               ( &self ) ->  bool                            { self.hazTwoByteOpcode                             }
-  pub fn hazTwoByteVEX                  ( &self ) ->  bool                            { self.hazTwoByteVEX                                }
+  pub fn hazAddressSizeOverride         ( &self )     ->  bool                        { self.hazAddressSizeOverride                       }
+  pub fn hazBranchHint                  ( &self )     ->  bool                        { self.theBranchHint          !=  0                 }
+  pub fn hazLock                        ( &self )     ->  bool                        { self.hazLock                                      }
+  pub fn hazOperandSizeOverride         ( &self )     ->  bool                        { self.hazOperandSizeOverride                       }
+  pub fn hazRepeat                      ( &self )     ->  bool                        { self.theRepeat              !=  0                 }
+  pub fn hazREX                         ( &self )     ->  bool                        { self.theREX                 !=  0                 }
+  pub fn hazSegmentOverride             ( &self )     ->  bool                        { self.theSegmentOverride     !=  0                 }
+  pub fn hazThreeByteVEX                ( &self )     ->  bool                        { self.hazThreeByteVEX                              }
+  pub fn hazThreeByteXOP                ( &self )     ->  bool                        { self.hazThreeByteXOP                              }
+  pub fn hazTwoByteOpcode               ( &self )     ->  bool                        { self.hazTwoByteOpcode                             }
+  pub fn hazTwoByteVEX                  ( &self )     ->  bool                        { self.hazTwoByteVEX                                }
 
   pub fn setAddress                     ( &mut  self, address:  InstructionAddress  ) { self.address                =   address;          }
   pub fn setAddressSizeOverride         ( &mut  self, value:    bool                ) { self.hazAddressSizeOverride =   value;            }
@@ -113,7 +114,7 @@ impl Instruction
     &self,
   )
   {
-    if let Some ( opcode ) = self.theOpcode
+    if self.instruction > InstructionType::ActualInstruction
     {
       if let InstructionAddress::Some { base, offs } = self.address
       {
@@ -251,10 +252,11 @@ impl InstructionAddress
   }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq,PartialOrd)]
 pub enum InstructionType
 {
   Label                                 ( usize ),
+  ActualInstruction,
   AAA,
   AAS,
   ADC,
