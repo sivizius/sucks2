@@ -127,6 +127,42 @@ impl Expression
       =>  ( None,             OperandType::Expression             ( Expression  ( stack )         ) ),
     }
   }
+  pub fn to_string
+  (
+    &self
+  ) ->  String
+  {
+    let mut output                      =   "".to_string();
+    for token                           in  &self.0
+    {
+      if output != ""
+      {
+        output                          +=  " "
+      }
+      match token
+      {
+        ExpressionToken::Constant               ( value               ) =>  output  +=  &format! ( "{}", value ),
+        ExpressionToken::GeneralPurposeRegister { rex,  size, number  } =>  output  +=  &OperandType::GeneralPurposeRegister  { rex:  *rex, number: *number }.to_string ( *size ),
+        ExpressionToken::SegmentRegister        ( register            ) =>  output  +=  &OperandType::SegmentRegister         ( *register                   ).to_string ( 2     ),
+        ExpressionToken::Neg                                            =>  output  +=  "~",
+        ExpressionToken::Add                                            =>  output  +=  "+",
+        ExpressionToken::Substract                                      =>  output  +=  "-",
+        ExpressionToken::Multiply                                       =>  output  +=  "*",
+        ExpressionToken::Divide                                         =>  output  +=  "/",
+        ExpressionToken::Modulo                                         =>  output  +=  "%",
+        ExpressionToken::BitwiseNot                                     =>  output  +=  "!",
+        ExpressionToken::BitwiseAnd                                     =>  output  +=  "&",
+        ExpressionToken::BitwiseOr                                      =>  output  +=  "|",
+        ExpressionToken::BitwiseXor                                     =>  output  +=  "^",
+        ExpressionToken::LogicalNot                                     =>  output  +=  "!!",
+        ExpressionToken::LogicalAnd                                     =>  output  +=  "&&",
+        ExpressionToken::LogicalOr                                      =>  output  +=  "||",
+        ExpressionToken::LogicalXor                                     =>  output  +=  "^^",
+        _                                                               =>  output  +=  "…",
+      };
+    }
+    output
+  }
 }
 
 #[derive(Clone,Debug,PartialEq,PartialOrd)]
