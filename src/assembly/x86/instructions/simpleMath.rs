@@ -87,7 +87,10 @@ impl X86
     {
       match ( &instruction.operands [ 0 ], &instruction.operands [ 1 ] )
       {
-        ( OperandType::GeneralPurposeRegister ( mut dstRegister ),  OperandType::Constant               ( mut immediate ) )
+        (
+          OperandType::GeneralPurposeRegister { rex:  dstREX, number: mut dstRegister },
+          OperandType::Constant               ( mut immediate )
+        )
         =>  {
               instruction.setImmediate                          ( instruction.size, immediate     );
               if  ( dstRegister == 0 )
@@ -320,7 +323,10 @@ impl X86
                 }
               }
             },
-        ( OperandType::GeneralPurposeRegister ( dstRegister ),  OperandType::GeneralPurposeRegister ( srcRegister ) )
+        (
+          OperandType::GeneralPurposeRegister { rex:  dstREX, number: dstRegister },
+          OperandType::GeneralPurposeRegister { rex:  srcREX, number: srcRegister }
+        )
         =>  {
               Ok ( None )
             },

@@ -34,7 +34,11 @@ pub enum OperandType
     offset:                             usize,
     label:                              usize,
   },
-  GeneralPurposeRegister                ( u8 ),
+  GeneralPurposeRegister
+  {
+    rex:                                bool,
+    number:                             u8,
+  },
   SegmentRegister                       ( u8 ),
   ControlRegister                       ( u8 ),
   DebugRegister                         ( u8 ),
@@ -48,7 +52,6 @@ impl OperandType
   (
     &self,
     size:                               usize,
-    hazREX:                             bool,
   )
   {
     match self
@@ -63,87 +66,87 @@ impl OperandType
       =>  print!  ( " […]," ),
       OperandType::Memory32               { .. }
       =>  print!  ( " […]," ),
-      OperandType::GeneralPurposeRegister ( register )
+      OperandType::GeneralPurposeRegister { rex, number }
       =>  {
             match size
             {
               1 =>  {
-                      match register
+                      match *number
                       {
-                        0 =>  print!  ( " al,"                        ),
-                        1 =>  print!  ( " cl,"                        ),
-                        2 =>  print!  ( " dl,"                        ),
-                        3 =>  print!  ( " bl,"                        ),
-                        4 if hazREX
-                        =>    print!  ( " ah,"                        ),
-                        4 =>  print!  ( " spl,"                       ),
-                        5 if hazREX
-                        =>    print!  ( " ch,"                        ),
-                        5 =>  print!  ( " bpl,"                       ),
-                        6 if hazREX
-                        =>    print!  ( " dh,"                        ),
-                        6 =>  print!  ( " sil,"                       ),
-                        7 if hazREX
-                        =>    print!  ( " bh,"                        ),
-                        7 =>  print!  ( " dil,"                       ),
+                        0 =>  print!  ( " al,"                      ),
+                        1 =>  print!  ( " cl,"                      ),
+                        2 =>  print!  ( " dl,"                      ),
+                        3 =>  print!  ( " bl,"                      ),
+                        4 if *rex
+                        =>    print!  ( " ah,"                      ),
+                        4 =>  print!  ( " spl,"                     ),
+                        5 if *rex
+                        =>    print!  ( " ch,"                      ),
+                        5 =>  print!  ( " bpl,"                     ),
+                        6 if *rex
+                        =>    print!  ( " dh,"                      ),
+                        6 =>  print!  ( " sil,"                     ),
+                        7 if *rex
+                        =>    print!  ( " bh,"                      ),
+                        7 =>  print!  ( " dil,"                     ),
                         8 ... 15
-                        =>    print!  ( " r{}b,",           register, ),
+                        =>    print!  ( " r{}b,",           *number ),
                         _
-                        =>    print!  ( " r{}b?,",          register, ),
+                        =>    print!  ( " r{}b?,",          *number ),
                       }
                     },
               2 =>  {
-                      match register
+                      match *number
                       {
-                        0 =>  print!  ( " ax,"                        ),
-                        1 =>  print!  ( " cx,"                        ),
-                        2 =>  print!  ( " dx,"                        ),
-                        3 =>  print!  ( " bx,"                        ),
-                        4 =>  print!  ( " sp,"                        ),
-                        5 =>  print!  ( " bp,"                        ),
-                        6 =>  print!  ( " si,"                        ),
-                        7 =>  print!  ( " di,"                        ),
+                        0 =>  print!  ( " ax,"                      ),
+                        1 =>  print!  ( " cx,"                      ),
+                        2 =>  print!  ( " dx,"                      ),
+                        3 =>  print!  ( " bx,"                      ),
+                        4 =>  print!  ( " sp,"                      ),
+                        5 =>  print!  ( " bp,"                      ),
+                        6 =>  print!  ( " si,"                      ),
+                        7 =>  print!  ( " di,"                      ),
                         8 ... 15
-                        =>    print!  ( " r{}w,",           register, ),
+                        =>    print!  ( " r{}w,",           *number ),
                         _
-                        =>    print!  ( " r{}w?,",          register, ),
+                        =>    print!  ( " r{}w?,",          *number ),
                       }
                     },
               4 =>  {
-                      match register
+                      match *number
                       {
-                        0 =>  print!  ( " eax,"                       ),
-                        1 =>  print!  ( " ecx,"                       ),
-                        2 =>  print!  ( " edx,"                       ),
-                        3 =>  print!  ( " ebx,"                       ),
-                        4 =>  print!  ( " esp,"                       ),
-                        5 =>  print!  ( " ebp,"                       ),
-                        6 =>  print!  ( " esi,"                       ),
-                        7 =>  print!  ( " edi,"                       ),
+                        0 =>  print!  ( " eax,"                     ),
+                        1 =>  print!  ( " ecx,"                     ),
+                        2 =>  print!  ( " edx,"                     ),
+                        3 =>  print!  ( " ebx,"                     ),
+                        4 =>  print!  ( " esp,"                     ),
+                        5 =>  print!  ( " ebp,"                     ),
+                        6 =>  print!  ( " esi,"                     ),
+                        7 =>  print!  ( " edi,"                     ),
                         8 ... 15
-                        =>    print!  ( " r{}d,",           register, ),
+                        =>    print!  ( " r{}d,",           *number ),
                         _
-                        =>    print!  ( " r{}d?,",          register, ),
+                        =>    print!  ( " r{}d?,",          *number ),
                       }
                     },
               8 =>  {
-                      match register
+                      match *number
                       {
-                        0 =>  print!  ( " rax,"                       ),
-                        1 =>  print!  ( " rcx,"                       ),
-                        2 =>  print!  ( " rdx,"                       ),
-                        3 =>  print!  ( " rbx,"                       ),
-                        4 =>  print!  ( " rsp,"                       ),
-                        5 =>  print!  ( " rbp,"                       ),
-                        6 =>  print!  ( " rsi,"                       ),
-                        7 =>  print!  ( " rdi,"                       ),
+                        0 =>  print!  ( " rax,"                     ),
+                        1 =>  print!  ( " rcx,"                     ),
+                        2 =>  print!  ( " rdx,"                     ),
+                        3 =>  print!  ( " rbx,"                     ),
+                        4 =>  print!  ( " rsp,"                     ),
+                        5 =>  print!  ( " rbp,"                     ),
+                        6 =>  print!  ( " rsi,"                     ),
+                        7 =>  print!  ( " rdi,"                     ),
                         8 ... 15
-                        =>    print!  ( " r{},",            register, ),
+                        =>    print!  ( " r{},",            *number ),
                         _
-                        =>    print!  ( " r{}?,",           register, ),
+                        =>    print!  ( " r{}?,",           *number ),
                       }
                     },
-              _ =>            print!  ( "({})r{}?,",  size, register, ),
+              _ =>            print!  ( "({})r{}?,",  size, *number ),
             }
           },
       OperandType::SegmentRegister      ( register )
@@ -191,7 +194,7 @@ impl OperandType
       OperandType::Memory16             { .. }  =>  { "Memory (16 bit)"           },
       OperandType::Memory32             { .. }  =>  { "Memory (32 bit)"           },
       OperandType::GeneralPurposeRegister
-                                        ( _ )   =>  { "General Purpose Register"  },
+                                        { .. }  =>  { "General Purpose Register"  },
       OperandType::SegmentRegister      ( _ )   =>  { "Segment Register"          },
       OperandType::ControlRegister      ( _ )   =>  { "Control Register"          },
       OperandType::DebugRegister        ( _ )   =>  { "Debug Register"            },

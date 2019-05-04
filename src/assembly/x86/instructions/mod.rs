@@ -103,7 +103,7 @@ impl Instruction
     print! ( "{:?}", &self.instruction );
     for   operand                       in  self.getOperands()
     {
-      operand.print ( self.size, false );
+      operand.print ( self.size );
     }
     println!  ( "" );
     Err ( message )
@@ -133,7 +133,7 @@ impl Instruction
     print!      ( "{:?}", &self.instruction );
     for   operand                       in  self.getOperands()
     {
-      operand.print ( self.size, false );
+      operand.print ( self.size );
     }
     println!    ( "" );
   }
