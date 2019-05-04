@@ -8,43 +8,13 @@ use super::
   },
 };
 
-#[derive(Clone,Debug,PartialEq,PartialOrd)]
-pub enum ExpressionToken
-{
-  //  Operands
-  Constant                              ( i128  ),
-  Label                                 ( usize ),
-  GeneralPurposeRegister
-  {
-    rex:                                bool,               //  true for spl, bpl, sil and dil
-    size:                               usize,
-    number:                             u8,
-  },
-  //  One Operand Operators
-  Neg,
-  BitwiseNot,
-  LogicalNot,
-  //  Two Operand Operators
-  Add,
-  Substract,
-  Multiply,
-  Divide,
-  Modulo,
-  BitwiseAnd,
-  BitwiseOr,
-  BitwiseXor,
-  LogicalAnd,
-  LogicalOr,
-  LogicalXor,
-}
+#[derive(Clone,Debug)]
+pub struct Expression ( pub Vec<ExpressionToken> );
 
 impl Operand for Expression
 {
   fn this   ( self ) -> ( OperandType, usize )  { ( OperandType::Expression ( self ), 0 ) }
 }
-
-#[derive(Clone,Debug)]
-pub struct Expression ( pub Vec<ExpressionToken> );
 
 impl Expression
 {
@@ -63,8 +33,8 @@ impl Expression
       _
       if  token >= ExpressionToken::Add
       =>  {
-            let mut tmp2              =   Expression::calculate ( &mut stack )?;
-            let mut tmp1              =   Expression::calculate ( &mut stack )?;
+            let mut tmp2                =   Expression::calculate ( &mut stack )?;
+            let mut tmp1                =   Expression::calculate ( &mut stack )?;
             if let  (
                       [ ExpressionToken::Constant ( val1  ) ],
                       [ ExpressionToken::Constant ( val2  ) ],
@@ -133,7 +103,10 @@ impl Expression
             }
           },
       _
-      =>  unimplemented!(),
+      =>  {
+            println!        ( "_{:?}_", token );
+            unimplemented!  (                 );
+          },
     }
   }
   pub fn solve
@@ -145,11 +118,46 @@ impl Expression
     match stack.as_slice()
     {
       [ ExpressionToken::Constant ( value ) ]
-      =>  ( Some  ( 0 ),  OperandType::Constant   ( *value                ) ),
+      =>  ( Some  ( 0 ),      OperandType::Constant               ( *value                        ) ),
+      [ ExpressionToken::GeneralPurposeRegister { rex, size, number } ]
+      =>  ( Some  ( *size ),  OperandType::GeneralPurposeRegister { rex:  *rex, number:  *number  } ),
+      [ ExpressionToken::SegmentRegister        ( register ) ]
+      =>  ( Some  ( 2 ),      OperandType::SegmentRegister        ( *register                     ) ),
       _
-      =>  ( None,         OperandType::Expression ( Expression  ( stack ) ) ),
+      =>  ( None,             OperandType::Expression             ( Expression  ( stack )         ) ),
     }
   }
+}
+
+#[derive(Clone,Debug,PartialEq,PartialOrd)]
+pub enum ExpressionToken
+{
+  //  Operands
+  Constant                              ( i128  ),
+  GeneralPurposeRegister
+  {
+    rex:                                bool,               //  true for spl, bpl, sil and dil
+    size:                               usize,
+    number:                             u8,
+  },
+  SegmentRegister                       ( u8    ),
+  Label                                 ( usize ),
+  //  One Operand Operators
+  Neg,
+  BitwiseNot,
+  LogicalNot,
+  //  Two Operand Operators
+  Add,
+  Substract,
+  Multiply,
+  Divide,
+  Modulo,
+  BitwiseAnd,
+  BitwiseOr,
+  BitwiseXor,
+  LogicalAnd,
+  LogicalOr,
+  LogicalXor,
 }
 
 #[macro_export]
@@ -172,6 +180,34 @@ macro_rules! nextToken
   ( and                 )               =>  { ExpressionToken::LogicalAnd                                                   };
   ( or                  )               =>  { ExpressionToken::LogicalOr                                                    };
   ( xor                 )               =>  { ExpressionToken::LogicalXor                                                   };
+  ( al                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 1,  number: 0 } };
+  ( cl                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 1,  number: 1 } };
+  ( dl                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 1,  number: 2 } };
+  ( bl                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 1,  number: 3 } };
+  ( ah                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 1,  number: 4 } };
+  ( ch                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 1,  number: 5 } };
+  ( dh                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 1,  number: 6 } };
+  ( bh                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 1,  number: 7 } };
+  ( spl                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  true,   size: 1,  number: 4 } };
+  ( bpl                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  true,   size: 1,  number: 5 } };
+  ( sil                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  true,   size: 1,  number: 6 } };
+  ( dil                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  true,   size: 1,  number: 7 } };
+  ( ax                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 0 } };
+  ( cx                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 1 } };
+  ( dx                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 2 } };
+  ( bx                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 3 } };
+  ( sp                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 4 } };
+  ( bp                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 5 } };
+  ( si                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 6 } };
+  ( di                  )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 7 } };
+  ( eax                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 4,  number: 0 } };
+  ( ecx                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 4,  number: 1 } };
+  ( edx                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 4,  number: 2 } };
+  ( ebx                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 4,  number: 3 } };
+  ( esp                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 4,  number: 4 } };
+  ( ebp                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 4,  number: 5 } };
+  ( esi                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 4,  number: 6 } };
+  ( edi                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 4,  number: 7 } };
   ( rax                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 8,  number: 0 } };
   ( rcx                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 8,  number: 1 } };
   ( rdx                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 8,  number: 2 } };
@@ -180,6 +216,12 @@ macro_rules! nextToken
   ( rbp                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 8,  number: 5 } };
   ( rsi                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 8,  number: 6 } };
   ( rdi                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 8,  number: 7 } };
+  ( cs                  )               =>  { ExpressionToken::SegmentRegister        ( 0                                 ) };
+  ( ss                  )               =>  { ExpressionToken::SegmentRegister        ( 1                                 ) };
+  ( ds                  )               =>  { ExpressionToken::SegmentRegister        ( 2                                 ) };
+  ( es                  )               =>  { ExpressionToken::SegmentRegister        ( 3                                 ) };
+  ( fs                  )               =>  { ExpressionToken::SegmentRegister        ( 4                                 ) };
+  ( gs                  )               =>  { ExpressionToken::SegmentRegister        ( 5                                 ) };
   ( $value:literal      )               =>  { ExpressionToken::Constant               ( $value                            ) };
 }
 
