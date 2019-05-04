@@ -7,6 +7,16 @@ use super::
   },
 };
 
+pub trait Operand
+{
+  fn this   ( self ) -> ( OperandType, usize );
+}
+
+impl Operand                            for i128
+{
+  fn this   ( self ) -> ( OperandType, usize ) { ( OperandType::Constant ( self ), 0 ) }
+}
+
 #[derive(Clone)]
 pub enum OperandType
 {
@@ -21,8 +31,7 @@ pub enum OperandType
   {
     segment:                            u8,
     registers:                          u8,
-    offset:                             usize,
-    label:                              usize,
+    displacement:                       i128,
   },
   // segment + registers + label + offset
   Memory32
@@ -31,8 +40,7 @@ pub enum OperandType
     base:                               u8,
     scale:                              u8,
     index:                              u8,
-    offset:                             usize,
-    label:                              usize,
+    displacement:                       i128,
   },
   GeneralPurposeRegister
   {
@@ -54,18 +62,61 @@ impl OperandType
     size:                               usize,
   )
   {
+    print!  ( " {},", self.to_string  ( size ) );
+  }
+  pub fn to_string
+  (
+    &self,
+    size:                               usize,
+  ) ->  String
+  {
     match self
     {
       OperandType::Label                  ( name )
-      =>  print!  ( " @{},", name ),
+      =>  format! ( "@{}", name ),
       OperandType::Constant               ( constant )
-      =>  print!  ( " {},", constant ),
+      =>  format! ( "{}", constant ),
       OperandType::Expression             ( expression )
-      =>  print!  ( " {:?},", expression ),
-      OperandType::Memory16               { .. }
-      =>  print!  ( " […]," ),
+      =>  format! ( "{:?}", expression ),
+      OperandType::Memory16               { segment, registers, displacement }
+      =>  format!
+          (
+            "{} {}:[ {}{} ]",
+            match size
+            {
+              1 =>  "byte".to_string(),
+              2 =>  "word".to_string(),
+              4 =>  "dword".to_string(),
+              8 =>  "qword".to_string(),
+              _ =>  format! ( "{}", size ),
+            },
+            match segment
+            {
+              0 =>  "cs",
+              1 =>  "ss",
+              2 =>  "ds",
+              3 =>  "es",
+              4 =>  "fs",
+              5 =>  "gs",
+              _ =>  "??",
+            },
+            displacement,
+            match registers
+            {
+              0x00  =>  " + bx + si",
+              0x01  =>  " + bx + di",
+              0x02  =>  " + bp + si",
+              0x03  =>  " + bp + di",
+              0x04  =>  " + si",
+              0x05  =>  " + di",
+              0x06  =>  " + bp",
+              0x07  =>  " + bx",
+              0x86  =>  "",
+              _     =>  " + ???",
+            },
+          ),
       OperandType::Memory32               { .. }
-      =>  print!  ( " […]," ),
+      =>  format! ( "[…]" ),
       OperandType::GeneralPurposeRegister { rex, number }
       =>  {
             match size
@@ -73,143 +124,112 @@ impl OperandType
               1 =>  {
                       match *number
                       {
-                        0 =>  print!  ( " al,"                      ),
-                        1 =>  print!  ( " cl,"                      ),
-                        2 =>  print!  ( " dl,"                      ),
-                        3 =>  print!  ( " bl,"                      ),
+                        0 =>  format! ( "al"                      ),
+                        1 =>  format! ( "cl"                      ),
+                        2 =>  format! ( "dl"                      ),
+                        3 =>  format! ( "bl"                      ),
                         4 if *rex
-                        =>    print!  ( " ah,"                      ),
-                        4 =>  print!  ( " spl,"                     ),
+                        =>    format! ( "ah"                      ),
+                        4 =>  format! ( "spl"                     ),
                         5 if *rex
-                        =>    print!  ( " ch,"                      ),
-                        5 =>  print!  ( " bpl,"                     ),
+                        =>    format! ( "ch"                      ),
+                        5 =>  format! ( "bpl"                     ),
                         6 if *rex
-                        =>    print!  ( " dh,"                      ),
-                        6 =>  print!  ( " sil,"                     ),
+                        =>    format! ( "dh"                      ),
+                        6 =>  format! ( "sil"                     ),
                         7 if *rex
-                        =>    print!  ( " bh,"                      ),
-                        7 =>  print!  ( " dil,"                     ),
+                        =>    format! ( "bh"                      ),
+                        7 =>  format! ( "dil"                     ),
                         8 ... 15
-                        =>    print!  ( " r{}b,",           *number ),
+                        =>    format! ( "r{}b",           *number ),
                         _
-                        =>    print!  ( " r{}b?,",          *number ),
+                        =>    format! ( "r{}b?",          *number ),
                       }
                     },
               2 =>  {
                       match *number
                       {
-                        0 =>  print!  ( " ax,"                      ),
-                        1 =>  print!  ( " cx,"                      ),
-                        2 =>  print!  ( " dx,"                      ),
-                        3 =>  print!  ( " bx,"                      ),
-                        4 =>  print!  ( " sp,"                      ),
-                        5 =>  print!  ( " bp,"                      ),
-                        6 =>  print!  ( " si,"                      ),
-                        7 =>  print!  ( " di,"                      ),
+                        0 =>  format! ( "ax"                      ),
+                        1 =>  format! ( "cx"                      ),
+                        2 =>  format! ( "dx"                      ),
+                        3 =>  format! ( "bx"                      ),
+                        4 =>  format! ( "sp"                      ),
+                        5 =>  format! ( "bp"                      ),
+                        6 =>  format! ( "si"                      ),
+                        7 =>  format! ( "di"                      ),
                         8 ... 15
-                        =>    print!  ( " r{}w,",           *number ),
+                        =>    format! ( "r{}w",           *number ),
                         _
-                        =>    print!  ( " r{}w?,",          *number ),
+                        =>    format! ( "r{}w?",          *number ),
                       }
                     },
               4 =>  {
                       match *number
                       {
-                        0 =>  print!  ( " eax,"                     ),
-                        1 =>  print!  ( " ecx,"                     ),
-                        2 =>  print!  ( " edx,"                     ),
-                        3 =>  print!  ( " ebx,"                     ),
-                        4 =>  print!  ( " esp,"                     ),
-                        5 =>  print!  ( " ebp,"                     ),
-                        6 =>  print!  ( " esi,"                     ),
-                        7 =>  print!  ( " edi,"                     ),
+                        0 =>  format! ( "eax"                     ),
+                        1 =>  format! ( "ecx"                     ),
+                        2 =>  format! ( "edx"                     ),
+                        3 =>  format! ( "ebx"                     ),
+                        4 =>  format! ( "esp"                     ),
+                        5 =>  format! ( "ebp"                     ),
+                        6 =>  format! ( "esi"                     ),
+                        7 =>  format! ( "edi"                     ),
                         8 ... 15
-                        =>    print!  ( " r{}d,",           *number ),
+                        =>    format! ( "r{}d",           *number ),
                         _
-                        =>    print!  ( " r{}d?,",          *number ),
+                        =>    format! ( "r{}d?",          *number ),
                       }
                     },
               8 =>  {
                       match *number
                       {
-                        0 =>  print!  ( " rax,"                     ),
-                        1 =>  print!  ( " rcx,"                     ),
-                        2 =>  print!  ( " rdx,"                     ),
-                        3 =>  print!  ( " rbx,"                     ),
-                        4 =>  print!  ( " rsp,"                     ),
-                        5 =>  print!  ( " rbp,"                     ),
-                        6 =>  print!  ( " rsi,"                     ),
-                        7 =>  print!  ( " rdi,"                     ),
+                        0 =>  format! ( "rax"                     ),
+                        1 =>  format! ( "rcx"                     ),
+                        2 =>  format! ( "rdx"                     ),
+                        3 =>  format! ( "rbx"                     ),
+                        4 =>  format! ( "rsp"                     ),
+                        5 =>  format! ( "rbp"                     ),
+                        6 =>  format! ( "rsi"                     ),
+                        7 =>  format! ( "rdi"                     ),
                         8 ... 15
-                        =>    print!  ( " r{},",            *number ),
+                        =>    format! ( "r{}",            *number ),
                         _
-                        =>    print!  ( " r{}?,",           *number ),
+                        =>    format! ( "r{}?",           *number ),
                       }
                     },
-              _ =>            print!  ( "({})r{}?,",  size, *number ),
+              _ =>            format! ( "({})r{}?",  size, *number ),
             }
           },
       OperandType::SegmentRegister      ( register )
       =>  {
             match register
             {
-              0 =>  print!  ( " cs,"              ),
-              1 =>  print!  ( " ss,"              ),
-              2 =>  print!  ( " ds,"              ),
-              3 =>  print!  ( " es,"              ),
-              4 =>  print!  ( " fs,"              ),
-              5 =>  print!  ( " gs,"              ),
-              _ =>  print!  ( " {}s,",  register  ),
+              0 =>  format! ( "cs"              ),
+              1 =>  format! ( "ss"              ),
+              2 =>  format! ( "ds"              ),
+              3 =>  format! ( "es"              ),
+              4 =>  format! ( "fs"              ),
+              5 =>  format! ( "gs"              ),
+              _ =>  format! ( "{}s",  register  ),
             }
           },
       OperandType::ControlRegister      ( register )
-      =>  print!  ( " cr{},", register ),
+      =>  format! ( "cr{}", register ),
       OperandType::DebugRegister        ( register )
-      =>  print!  ( " dr{},", register ),
+      =>  format! ( "dr{}", register ),
       OperandType::TestRegister         ( register )
-      =>  print!  ( " dr{},", register ),
+      =>  format! ( "dr{}", register ),
       OperandType::MulitMediaRegister   ( register )
       =>  {
             match size
             {
-               8  =>  print!  ( " mm{},",             register ),
-              16  =>  print!  ( " xmm{},",            register ),
-              32  =>  print!  ( " ymm{},",            register ),
-              64  =>  print!  ( " zmm{},",            register ),
-              _   =>  print!  ( " ({})mm{}?,",  size, register ),
+               8  =>  format! ( "mm{}",             register  ),
+              16  =>  format! ( "xmm{}",            register  ),
+              32  =>  format! ( "ymm{}",            register  ),
+              64  =>  format! ( "zmm{}",            register  ),
+              _   =>  format! ( "({})mm{}?",  size, register  ),
             }
           },
     }
   }
-  pub fn to_string
-  (
-    &self,
-  ) -> &'static str
-  {
-    match self
-    {
-      OperandType::Label                ( _ )   =>  { "Label"                     },
-      OperandType::Constant             ( _ )   =>  { "Constant"                  },
-      OperandType::Expression           ( _ )   =>  { "Expression"                },
-      OperandType::Memory16             { .. }  =>  { "Memory (16 bit)"           },
-      OperandType::Memory32             { .. }  =>  { "Memory (32 bit)"           },
-      OperandType::GeneralPurposeRegister
-                                        { .. }  =>  { "General Purpose Register"  },
-      OperandType::SegmentRegister      ( _ )   =>  { "Segment Register"          },
-      OperandType::ControlRegister      ( _ )   =>  { "Control Register"          },
-      OperandType::DebugRegister        ( _ )   =>  { "Debug Register"            },
-      OperandType::TestRegister         ( _ )   =>  { "Test Register"             },
-      OperandType::MulitMediaRegister   ( _ )   =>  { "Multi Media Register"      },
-    }
-  }
-}
-
-pub trait Operand
-{
-  fn this   ( self ) -> ( OperandType, usize );
-}
-
-impl Operand                            for i128
-{
-  fn this   ( self ) -> ( OperandType, usize ) { ( OperandType::Constant ( self ), 0 ) }
 }

@@ -337,8 +337,8 @@ impl X86
                 format!
                 (
                   "Invalid Combination of Arguments ›{}‹, ›{}‹",
-                  instruction.operands [ 0 ].to_string(),
-                  instruction.operands [ 1 ].to_string(),
+                  instruction.operands [ 0 ].to_string  ( instruction.size  ),
+                  instruction.operands [ 1 ].to_string  ( instruction.size  ),
                 )
               )
             },
