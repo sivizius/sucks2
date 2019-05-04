@@ -12,6 +12,10 @@ use sucks2::
     x86::
     {
       X86,
+      memory::
+      {
+        Memory16,
+      },
       expressions::
       {
         Expression,
@@ -135,13 +139,13 @@ fn main () -> Result<(), &'static str>
 
   let     myCode
   = X86 ()
-    .label( "start"                                     )
-    .add  ( X86::al,  0x23                              )
-    .add  ( X86::ax,  0x1337                            )
-    .add  ( X86::bl,  0x42                              )
-    .add  ( X86::cx,  0x9000                            )
-    .add  ( X86::dx,  expression! ( 1 1 + 2 * 0x1337  ) )
-    .iret (                                             )
+    .label( "start"                                                                                 )
+    .add  ( X86::al,  0x23                                                                          )
+    .add  ( X86::ax,  0x1337                                                                        )
+    .add  ( X86::bl,  0x42                                                                          )
+    .add  ( X86::cx,  0x9000                                                                        )
+    .add  ( X86::dx,  x86Mem16! ( word ds:[ bx si 16 + + ] )                                        )
+    .iret (                                                                                         )
     ;
 
   let mut myAssembly

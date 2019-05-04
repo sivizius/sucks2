@@ -1,6 +1,8 @@
 #[macro_use]
 pub mod expressions;
 mod instructions;
+#[macro_use]
+pub mod memory;
 mod operands;
 mod registers;
 
@@ -142,6 +144,8 @@ impl X86
     for mut instruction                 in  &mut self.instructions
     {
       let mut length                    =   Some ( 0 );
+
+      //  try to resolve expressions
       for operand                       in  instruction.getOperandRefs()
       {
         if let OperandType::Expression ( expression ) = operand
@@ -151,6 +155,8 @@ impl X86
           *operand                      =   newOperand;
         }
       }
+
+      //  if not possible, skip further processing of instruction
       if length == Some ( 0 )
       {
         match instruction.getType()
@@ -222,8 +228,11 @@ impl X86
         }
       }
 
+      //  address calculations
       instruction.setAddress  ( address );
       address.add             ( length  )?;
+
+      //  debug instruction
       instruction.print       ();
     }
 

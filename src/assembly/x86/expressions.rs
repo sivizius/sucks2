@@ -177,6 +177,11 @@ pub enum ExpressionToken
     number:                             u8,
   },
   SegmentRegister                       ( u8    ),
+  Memory16
+  {
+    size:                               usize,
+    segment:                            u8,
+  },
   Label                                 ( usize ),
   //  One Operand Operators
   Neg,
