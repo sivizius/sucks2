@@ -144,7 +144,7 @@ fn main () -> Result<(), &'static str>
     .add  ( X86::ax,  0x1337                                                                        )
     .add  ( X86::bl,  0x42                                                                          )
     .add  ( X86::cx,  0x9000                                                                        )
-    .add  ( X86::dx,  x86Mem16! ( word ds:[ bx si 16 + + ] )                                        )
+    .add  ( X86::dx,  x86Mem16! ( byte ds:[ 2 bx * 3 bx * + 16 + ] )                                        )
     .iret (                                                                                         )
     ;
 

@@ -150,7 +150,7 @@ impl X86
       {
         if let OperandType::Expression ( expression ) = operand
         {
-          let ( newLength, newOperand ) =   expression.solve();
+          let ( newLength, newOperand ) =   expression.solve()?;
           length                        =   newLength;
           *operand                      =   newOperand;
         }
