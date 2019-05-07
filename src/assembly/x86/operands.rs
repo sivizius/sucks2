@@ -5,6 +5,14 @@ use super::
     Expression,
     ExpressionToken,
   },
+  memory::
+  {
+    Memory16Registers,
+  },
+  registers::
+  {
+    SegmentRegisterNumber,
+  },
 };
 
 pub trait Operand
@@ -29,14 +37,14 @@ pub enum OperandType
   // segment + base + scale * index + label + offset
   Memory16
   {
-    segment:                            u8,
-    registers:                          u8,
+    segment:                            SegmentRegisterNumber,
+    registers:                          Memory16Registers,
     displacement:                       i128,
   },
   // segment + registers + label + offset
   Memory32
   {
-    segment:                            u8,
+    segment:                            SegmentRegisterNumber,
     base:                               u8,
     scale:                              u8,
     index:                              u8,
@@ -47,7 +55,7 @@ pub enum OperandType
     rex:                                bool,
     number:                             u8,
   },
-  SegmentRegister                       ( u8 ),
+  SegmentRegister                       ( SegmentRegisterNumber ),
   ControlRegister                       ( u8 ),
   DebugRegister                         ( u8 ),
   TestRegister                          ( u8 ),
@@ -90,29 +98,20 @@ impl OperandType
               8 =>  "qword".to_string(),
               _ =>  format! ( "{}", size ),
             },
-            match segment
-            {
-              0 =>  "cs",
-              1 =>  "ss",
-              2 =>  "ds",
-              3 =>  "es",
-              4 =>  "fs",
-              5 =>  "gs",
-              _ =>  "??",
-            },
+            segment.to_string(),
             displacement,
             match registers
             {
-              0x00  =>  " + bx + si",
-              0x01  =>  " + bx + di",
-              0x02  =>  " + bp + si",
-              0x03  =>  " + bp + di",
-              0x04  =>  " + si",
-              0x05  =>  " + di",
-              0x06  =>  " + bp",
-              0x07  =>  " + bx",
-              0x86  =>  "",
-              _     =>  " + ???",
+              Memory16Registers::BXSI   =>  " + bx + si",
+              Memory16Registers::BXDI   =>  " + bx + di",
+              Memory16Registers::BPSI   =>  " + bp + si",
+              Memory16Registers::BPDI   =>  " + bp + di",
+              Memory16Registers::SI     =>  " + si",
+              Memory16Registers::DI     =>  " + di",
+              Memory16Registers::BP     =>  " + bp",
+              Memory16Registers::BX     =>  " + bx",
+              Memory16Registers::DISP   =>  "",
+              _                         =>  " + ???",
             },
           ),
       OperandType::Memory32               { .. }
@@ -201,18 +200,7 @@ impl OperandType
             }
           },
       OperandType::SegmentRegister      ( register )
-      =>  {
-            match register
-            {
-              0 =>  format! ( "cs"              ),
-              1 =>  format! ( "ss"              ),
-              2 =>  format! ( "ds"              ),
-              3 =>  format! ( "es"              ),
-              4 =>  format! ( "fs"              ),
-              5 =>  format! ( "gs"              ),
-              _ =>  format! ( "{}s",  register  ),
-            }
-          },
+      =>  register.to_string().to_string(),
       OperandType::ControlRegister      ( register )
       =>  format! ( "cr{}", register ),
       OperandType::DebugRegister        ( register )

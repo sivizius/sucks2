@@ -1,10 +1,18 @@
 use super::
 {
   X86,
+  memory::
+  {
+    Memory16Registers,
+  },
   operands::
   {
     Operand,
-    OperandType
+    OperandType,
+  },
+  registers::
+  {
+    SegmentRegisterNumber,
   },
 };
 
@@ -28,7 +36,7 @@ impl Expression
     {
       if token == *item
       {
-        Ok                              ( ( 1,            vec!  (       ) ) )   //←
+        Ok                              ( ( 1,            vec!  ( ExpressionToken::Constant ( 0 ) ) ) )   //←
       }
       else
       {
@@ -38,7 +46,7 @@ impl Expression
           ExpressionToken::GeneralPurposeRegister { ..  } |
           ExpressionToken::SegmentRegister        ( _   )
           =>  Ok                        ( ( 0,            vec!  ( token ) ) ),  //←
-          ExpressionToken::Memory16               { size, segment }
+          ExpressionToken::Memory16               { size, segment,  registers,  displacement  }
           =>  unimplemented!(),
           ExpressionToken::Add        |
           ExpressionToken::Substract
@@ -91,7 +99,7 @@ impl Expression
                 Ok                      ( ( -mul1,        rest1           ) )   //←
               },
           _
-          if  token > ExpressionToken::Divide
+          if  token > ExpressionToken::Multiply
           =>  {
                 let mut tmp2            =   Expression::calculate ( &mut stack )?;
                 let mut tmp1            =   Expression::calculate ( &mut stack )?;
@@ -118,7 +126,7 @@ impl Expression
     {
       Err
       (
-        "operands expected, but stack is emtpy"
+        "Operands Expected in dimension(), but Stack is Emtpy"
       )
     }
   }
@@ -134,13 +142,67 @@ impl Expression
         ExpressionToken::Constant               ( _   ) |
         ExpressionToken::GeneralPurposeRegister { ..  } |
         ExpressionToken::SegmentRegister        ( _   )
-        =>  Ok    ( vec!  ( token ) ),
-        ExpressionToken::Memory16               { size, segment }
+        =>  Ok              ( vec!  ( token ) ),
+        ExpressionToken::Memory16               { size, segment,  registers,  displacement  }
         =>  {
-              let mut substack          =   Expression::calculate ( &mut stack )?;
-              let ( scale,  mut rest  ) =   Expression::dimension ( &mut substack, &ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 3 } )?; //  bx
-              println!  ( "scale: {}", scale );
-              Ok   ( vec! ( ExpressionToken::Constant ( 0 )) )
+              let mut rest              =   Expression::calculate ( &mut stack )?;
+              let ( mulBX,  mut rest  ) =   Expression::dimension ( &mut rest,  &ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 3 } )?; //  bx
+              let ( mulBP,  mut rest  ) =   Expression::dimension ( &mut rest,  &ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 5 } )?; //  bp
+              let ( mulSI,  mut rest  ) =   Expression::dimension ( &mut rest,  &ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 6 } )?; //  si
+              let ( mulDI,  mut rest  ) =   Expression::dimension ( &mut rest,  &ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 7 } )?; //  di
+              let mut rest              =   Expression::calculate ( &mut rest )?;
+              if let  [ ExpressionToken::Constant ( value ) ] = rest.as_slice()
+              {
+                match ( mulBX,  mulBP,  mulSI,  mulDI,  segment )
+                {
+                  ( 1,  0,  1,  0,  SegmentRegisterNumber::Default  )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  SegmentRegisterNumber::DS,  registers: Memory16Registers::BXSI, displacement: *value  } ) ),
+                  ( 1,  0,  1,  0,  _                               )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  segment,                    registers: Memory16Registers::BXSI, displacement: *value  } ) ),
+                  ( 1,  0,  0,  1,  SegmentRegisterNumber::Default  )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  SegmentRegisterNumber::DS,  registers: Memory16Registers::BXDI, displacement: *value  } ) ),
+                  ( 1,  0,  0,  1,  _                               )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  segment,                    registers: Memory16Registers::BXDI, displacement: *value  } ) ),
+                  ( 0,  1,  1,  0,  SegmentRegisterNumber::Default  )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  SegmentRegisterNumber::SS,  registers: Memory16Registers::BPSI, displacement: *value  } ) ),
+                  ( 0,  1,  1,  0,  _                               )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  segment,                    registers: Memory16Registers::BPSI, displacement: *value  } ) ),
+                  ( 0,  1,  0,  1,  SegmentRegisterNumber::Default  )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  SegmentRegisterNumber::SS,  registers: Memory16Registers::BPDI, displacement: *value  } ) ),
+                  ( 0,  1,  0,  1,  _                               )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  segment,                    registers: Memory16Registers::BPDI, displacement: *value  } ) ),
+                  ( 0,  0,  1,  0,  SegmentRegisterNumber::Default  )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  SegmentRegisterNumber::DS,  registers: Memory16Registers::SI,   displacement: *value  } ) ),
+                  ( 0,  0,  1,  0,  _                               )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  segment,                    registers: Memory16Registers::SI,   displacement: *value  } ) ),
+                  ( 0,  0,  0,  1,  SegmentRegisterNumber::Default  )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  SegmentRegisterNumber::DS,  registers: Memory16Registers::DI,   displacement: *value  } ) ),
+                  ( 0,  0,  0,  1,  _                               )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  segment,                    registers: Memory16Registers::DI,   displacement: *value  } ) ),
+                  ( 0,  1,  0,  0,  SegmentRegisterNumber::Default  )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  SegmentRegisterNumber::SS,  registers: Memory16Registers::BP,   displacement: *value  } ) ),
+                  ( 0,  1,  0,  0,  _                               )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  segment,                    registers: Memory16Registers::BP,   displacement: *value  } ) ),
+                  ( 1,  0,  0,  0,  SegmentRegisterNumber::Default  )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  SegmentRegisterNumber::DS,  registers: Memory16Registers::BX,   displacement: *value  } ) ),
+                  ( 1,  0,  0,  0,  _                               )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  segment,                    registers: Memory16Registers::BX,   displacement: *value  } ) ),
+                  ( 0,  0,  0,  0,  SegmentRegisterNumber::Default  )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  SegmentRegisterNumber::DS,  registers: Memory16Registers::DISP, displacement: *value  } ) ),
+                  ( 0,  0,  0,  0,  _                               )
+                  =>  Ok  ( vec!  ( ExpressionToken::Memory16 { size: size, segment:  segment,                    registers: Memory16Registers::DISP, displacement: *value  } ) ),
+                  ( _,  _,  _,  _,  _                               )
+                  =>  {
+                        println!  ( "{}·Bx + {}·BP + {}·SI + {}·DI + {}", mulBX,  mulBP,  mulSI,  mulDI,  value );
+                        Err ( "Invalid Combination of Registers for 16 Bit Addressing" )
+                      }
+                }
+              }
+              else
+              {
+                println!  ( "{:?}", rest );
+                Err         ( "Non-Constant Rest as Displacement in Memory Address Calculation" )
+              }
             },
         _
         if  token >= ExpressionToken::Add
@@ -183,43 +245,43 @@ impl Expression
                     &&  val1  ==  Some  ( &0  )
               {
                 //  0 + b = b
-                Ok    ( tmp2  )
+                Ok          ( tmp2  )
               }
               else  if  token ==  ExpressionToken::Add
                     &&  val2  ==  Some  ( &0  )
               {
                 //  a + 0 = a
-                Ok    ( tmp1  )
+                Ok          ( tmp1  )
               }
               else  if  token ==  ExpressionToken::Substract
                     &&  val2  ==  Some  ( &0  )
               {
                 //  a - 0 = a
-                Ok    ( tmp1  )
+                Ok          ( tmp1  )
               }
               else  if  token ==  ExpressionToken::Multiply
                     &&  val1  ==  Some  ( &1  )
               {
                 //  1 * b = b
-                Ok    ( tmp2  )
+                Ok          ( tmp2  )
               }
               else  if  token ==  ExpressionToken::Multiply
                     &&  val2  ==  Some  ( &1  )
               {
                 //  a * 1 = a
-                Ok    ( tmp1  )
+                Ok          ( tmp1  )
               }
               else  if  token ==  ExpressionToken::Multiply
                     &&  ( val1  ==  Some  ( &0  ) ||  val2  ==  Some  ( &0  ) )
               {
                 //  a * 0 = 0 * b = 0
-                Ok    ( vec!  ( ExpressionToken::Constant ( 0 ) ) )
+                Ok          ( vec!  ( ExpressionToken::Constant ( 0 ) ) )
               }
               else  if  token ==  ExpressionToken::Divide
                     &&  val2  ==  Some  ( &1  )
               {
                 //  a / 1 = a
-                Ok    ( tmp1  )
+                Ok          ( tmp1  )
               }
               else
               {
@@ -268,7 +330,7 @@ impl Expression
     {
       Err
       (
-        "operands expected, but stack is emtpy"
+        "Operands Expected in calculation(), but Stack is Emtpy"
       )
     }
   }
@@ -280,14 +342,16 @@ impl Expression
     let     stack                       =   Expression::calculate ( &mut self.0.clone() )?;
     match stack.as_slice()
     {
-      [ ExpressionToken::Constant ( value ) ]
-      =>  Ok  ( ( Some  ( 0 ),      OperandType::Constant               ( *value                        ) ) ),
-      [ ExpressionToken::GeneralPurposeRegister { rex, size, number } ]
-      =>  Ok  ( ( Some  ( *size ),  OperandType::GeneralPurposeRegister { rex:  *rex, number:  *number  } ) ),
-      [ ExpressionToken::SegmentRegister        ( register ) ]
-      =>  Ok  ( ( Some  ( 2 ),      OperandType::SegmentRegister        ( *register                     ) ) ),
+      [ ExpressionToken::Constant               ( value                                     ) ]
+      =>  Ok  ( ( Some  ( 0 ),      OperandType::Constant               ( *value                                                                  ) ) ),
+      [ ExpressionToken::GeneralPurposeRegister { rex, size, number                         } ]
+      =>  Ok  ( ( Some  ( *size ),  OperandType::GeneralPurposeRegister { rex:  *rex, number:  *number                                            } ) ),
+      [ ExpressionToken::SegmentRegister        ( register                                  ) ]
+      =>  Ok  ( ( Some  ( 2 ),      OperandType::SegmentRegister        ( *register                                                               ) ) ),
+      [ ExpressionToken::Memory16               { size, segment,  registers,  displacement  } ]
+      =>  Ok  ( ( Some  ( *size ),  OperandType::Memory16               { segment:  *segment, registers:  *registers, displacement: *displacement } ) ),
       _
-      =>  Ok  ( ( None,             OperandType::Expression             ( Expression  ( stack )         ) ) ),
+      =>  Ok  ( ( None,             OperandType::Expression             ( Expression  ( stack )                                                   ) ) ),
     }
   }
   pub fn to_string
@@ -304,46 +368,55 @@ impl Expression
       }
       match token
       {
-        ExpressionToken::Constant               ( value               ) =>  output  +=  &format! ( "{}", value ),
-        ExpressionToken::GeneralPurposeRegister { rex,  size, number  } =>  output  +=  &OperandType::GeneralPurposeRegister  { rex:  *rex, number: *number }.to_string ( *size ),
-        ExpressionToken::SegmentRegister        ( register            ) =>  output  +=  &OperandType::SegmentRegister         ( *register                   ).to_string ( 2     ),
-        ExpressionToken::Memory16               {       size, segment } =>  output  +=  &format!
-                                                                                        (
-                                                                                          "mem16({}, {})",
-                                                                                          match size
-                                                                                          {
-                                                                                            1 =>  "byte".to_string(),
-                                                                                            2 =>  "word".to_string(),
-                                                                                            4 =>  "dword".to_string(),
-                                                                                            8 =>  "qword".to_string(),
-                                                                                            _ =>  format! ( "{}", size ),
-                                                                                          },
-                                                                                          match segment
-                                                                                          {
-                                                                                            0 =>  "cs",
-                                                                                            1 =>  "ss",
-                                                                                            2 =>  "ds",
-                                                                                            3 =>  "es",
-                                                                                            4 =>  "fs",
-                                                                                            5 =>  "gs",
-                                                                                            _ =>  "??",
-                                                                                          },
-                                                                                        ),
-        ExpressionToken::Neg                                            =>  output  +=  "~",
-        ExpressionToken::Add                                            =>  output  +=  "+",
-        ExpressionToken::Substract                                      =>  output  +=  "-",
-        ExpressionToken::Multiply                                       =>  output  +=  "*",
-        ExpressionToken::Divide                                         =>  output  +=  "/",
-        ExpressionToken::Modulo                                         =>  output  +=  "%",
-        ExpressionToken::BitwiseNot                                     =>  output  +=  "!",
-        ExpressionToken::BitwiseAnd                                     =>  output  +=  "&",
-        ExpressionToken::BitwiseOr                                      =>  output  +=  "|",
-        ExpressionToken::BitwiseXor                                     =>  output  +=  "^",
-        ExpressionToken::LogicalNot                                     =>  output  +=  "!!",
-        ExpressionToken::LogicalAnd                                     =>  output  +=  "&&",
-        ExpressionToken::LogicalOr                                      =>  output  +=  "||",
-        ExpressionToken::LogicalXor                                     =>  output  +=  "^^",
-        //_                                                               =>  output  +=  "…",
+        ExpressionToken::Constant               ( value               )
+                                        =>  output  +=  &format! ( "{}", value ),
+        ExpressionToken::GeneralPurposeRegister { rex,  size, number  }
+                                        =>  output  +=  &OperandType::GeneralPurposeRegister  { rex:  *rex, number: *number }.to_string ( *size ),
+        ExpressionToken::SegmentRegister        ( register            )
+                                        =>  output  +=  &OperandType::SegmentRegister         ( *register                   ).to_string ( 2     ),
+        ExpressionToken::Memory16               {       size, segment,  registers,  displacement  }
+                                        =>  output  +=  &format!
+                                                        (
+                                                          "{} {}:[ {}{} ] as mem16",
+                                                          match size
+                                                          {
+                                                            1 =>  "byte".to_string(),
+                                                            2 =>  "word".to_string(),
+                                                            4 =>  "dword".to_string(),
+                                                            8 =>  "qword".to_string(),
+                                                            _ =>  format! ( "{}", size ),
+                                                          },
+                                                          segment.to_string(),
+                                                          displacement,
+                                                          match registers
+                                                          {
+                                                            Memory16Registers::BXSI =>  " + bx + si",
+                                                            Memory16Registers::BXDI =>  " + bx + di",
+                                                            Memory16Registers::BPSI =>  " + bp + si",
+                                                            Memory16Registers::BPDI =>  " + bp + di",
+                                                            Memory16Registers::SI   =>  " + si",
+                                                            Memory16Registers::DI   =>  " + di",
+                                                            Memory16Registers::BP   =>  " + bp",
+                                                            Memory16Registers::BX   =>  " + bx",
+                                                            Memory16Registers::DISP =>  "",
+                                                            _                       =>  " + ???",
+                                                          }
+                                                        ),
+        ExpressionToken::Neg            =>  output  +=  "~",
+        ExpressionToken::Add            =>  output  +=  "+",
+        ExpressionToken::Substract      =>  output  +=  "-",
+        ExpressionToken::Multiply       =>  output  +=  "*",
+        ExpressionToken::Divide         =>  output  +=  "/",
+        ExpressionToken::Modulo         =>  output  +=  "%",
+        ExpressionToken::BitwiseNot     =>  output  +=  "!",
+        ExpressionToken::BitwiseAnd     =>  output  +=  "&",
+        ExpressionToken::BitwiseOr      =>  output  +=  "|",
+        ExpressionToken::BitwiseXor     =>  output  +=  "^",
+        ExpressionToken::LogicalNot     =>  output  +=  "!!",
+        ExpressionToken::LogicalAnd     =>  output  +=  "&&",
+        ExpressionToken::LogicalOr      =>  output  +=  "||",
+        ExpressionToken::LogicalXor     =>  output  +=  "^^",
+        //_                               =>  output  +=  "…",
       };
     }
     output
@@ -354,18 +427,20 @@ impl Expression
 pub enum ExpressionToken
 {
   //  Operands
-  Constant                              ( i128  ),
+  Constant                              ( i128                  ),
   GeneralPurposeRegister
   {
     rex:                                bool,               //  true for spl, bpl, sil and dil
     size:                               usize,
     number:                             u8,
   },
-  SegmentRegister                       ( u8    ),
+  SegmentRegister                       ( SegmentRegisterNumber ),
   Memory16
   {
     size:                               usize,
-    segment:                            u8,
+    segment:                            SegmentRegisterNumber,
+    registers:                          Memory16Registers,
+    displacement:                       i128,
   },
   //Label                                 ( usize ),
   //  One Operand Operators

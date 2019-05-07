@@ -4,7 +4,7 @@ mod instructions;
 #[macro_use]
 pub mod memory;
 mod operands;
-mod registers;
+pub mod registers;
 
 pub use self::
 {
