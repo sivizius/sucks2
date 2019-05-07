@@ -146,18 +146,28 @@ impl X86
       let mut length                    =   Some ( 0 );
 
       //  try to resolve expressions
+      let mut size                      =   0;
       for operand                       in  instruction.getOperandRefs()
       {
         if let OperandType::Expression ( expression ) = operand
         {
-          let ( newLength, newOperand ) =   expression.solve()?;
-          length                        =   newLength;
+          let ( newSize,  newOperand  ) =   expression.solve()?;
           *operand                      =   newOperand;
+          if let  Some  ( newSize  ) = newSize
+          {
+            size                        |=  newSize;
+          }
+          else
+          {
+            length                      =   None;
+          }
+          //println!  ( "{:?}",  *operand );
         }
       }
+      instruction.orOperandSize ( size  );
 
       //  if not possible, skip further processing of instruction
-      if length == Some ( 0 )
+      if length != None
       {
         match instruction.getType()
         {

@@ -25,7 +25,7 @@ impl Operand                            for i128
   fn this   ( self ) -> ( OperandType, usize ) { ( OperandType::Constant ( self ), 0 ) }
 }
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub enum OperandType
 {
   //  label might be removed, because it is just a abstract constant

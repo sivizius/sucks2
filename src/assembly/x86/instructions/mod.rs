@@ -14,7 +14,7 @@ pub struct Instruction
 {
   //  for debugging, writable once
   line:                                 usize,
-  //  for input, writeable once
+  //  for input, writeable once or after solving expressions
   size:                                 usize,
   instruction:                          InstructionType,
   operands:                             Vec<OperandType>,
@@ -64,6 +64,8 @@ impl Instruction
   pub fn hazThreeByteXOP                ( &self )     ->  bool                        { self.hazThreeByteXOP                              }
   pub fn hazTwoByteOpcode               ( &self )     ->  bool                        { self.hazTwoByteOpcode                             }
   pub fn hazTwoByteVEX                  ( &self )     ->  bool                        { self.hazTwoByteVEX                                }
+
+  pub fn orOperandSize                  ( &mut  self, size:     usize               ) { self.size                   |=  size;             }
 
   pub fn setAddress                     ( &mut  self, address:  InstructionAddress  ) { self.address                =   address;          }
   pub fn setAddressSizeOverride         ( &mut  self, value:    bool                ) { self.hazAddressSizeOverride =   value;            }
