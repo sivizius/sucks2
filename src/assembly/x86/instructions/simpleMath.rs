@@ -22,7 +22,8 @@ macro_rules!  declareSimpleMathInstruction
 {
   (
     $theName:ident,
-    $theInstruction:expr
+    $theInstruction:expr,
+    $theFeatures:expr
   )
   =>  {
         pub fn $theName
@@ -32,26 +33,27 @@ macro_rules!  declareSimpleMathInstruction
           src:                          impl Operand,
         ) -> Self
         {
-          self.simpleMathInstruction ( $theInstruction, dst, src )
+          self.simpleMathInstruction  ( $theInstruction,  $theFeatures, dst,  src )
         }
       }
 }
 
 impl X86
 {
-  declareSimpleMathInstruction! ( add,  InstructionType::ADD  );
-  declareSimpleMathInstruction! ( or,   InstructionType::OR   );
-  declareSimpleMathInstruction! ( adc,  InstructionType::ADC  );
-  declareSimpleMathInstruction! ( sbb,  InstructionType::SBB  );
-  declareSimpleMathInstruction! ( and,  InstructionType::AND  );
-  declareSimpleMathInstruction! ( sub,  InstructionType::SUB  );
-  declareSimpleMathInstruction! ( xor,  InstructionType::XOR  );
-  declareSimpleMathInstruction! ( cmp,  InstructionType::CMP  );
+  declareSimpleMathInstruction! ( add,  InstructionType::ADD, AssemblyFeatures::X86SignExtensionAllowed );
+  declareSimpleMathInstruction! ( or,   InstructionType::OR,  AssemblyFeatures::None                    );
+  declareSimpleMathInstruction! ( adc,  InstructionType::ADC, AssemblyFeatures::X86SignExtensionAllowed );
+  declareSimpleMathInstruction! ( sbb,  InstructionType::SBB, AssemblyFeatures::X86SignExtensionAllowed );
+  declareSimpleMathInstruction! ( and,  InstructionType::AND, AssemblyFeatures::None                    );
+  declareSimpleMathInstruction! ( sub,  InstructionType::SUB, AssemblyFeatures::X86SignExtensionAllowed );
+  declareSimpleMathInstruction! ( xor,  InstructionType::XOR, AssemblyFeatures::None                    );
+  declareSimpleMathInstruction! ( cmp,  InstructionType::CMP, AssemblyFeatures::X86SignExtensionAllowed );
 
   fn simpleMathInstruction
   (
     mut self,
     instruction:                        InstructionType,
+    features:                           AssemblyFeatures,
     dst:                                impl Operand,
     src:                                impl Operand,
   ) -> Self
@@ -64,6 +66,7 @@ impl X86
       Instruction
       (
         self.line,
+        self.features | features,
         size,
         instruction,
         vec! ( dstThis, srcThis ),
@@ -79,7 +82,6 @@ impl X86
     architecture:                       InstructionSet,
     operandSize:                        usize,
     addressSize:                        usize,
-    features:                           AssemblyFeatures,
     opcode:                             u8,
   ) -> Result<Option<usize>, String>
   {
@@ -92,7 +94,7 @@ impl X86
           OperandType::Constant               (           mut immediate                                                             )
         )
         =>  if  ( dstRegister == 0 )
-            && !( features.hazFeature ( AssemblyFeatures::RandomOpcodeSize ) && rand::random() )
+            && !( instruction.features.hazFeature ( AssemblyFeatures::RandomOpcodeSize ) && rand::random() )
             {
               instruction.setImmediate ( instruction.size, immediate );
               match instruction.size
@@ -178,7 +180,7 @@ impl X86
                 operandSize,
                 if  instruction.size  == 1
                 &&  architecture      < InstructionSet::amd64
-                &&  features.hazFeature ( AssemblyFeatures::RandomOpcode )
+                &&  instruction.features.hazFeature ( AssemblyFeatures::RandomOpcode )
                 &&  rand::random()
                 {
                   //  0x80 and 0x82 are aliases, but 0x82 is invalid for 64 bit.
@@ -206,7 +208,7 @@ impl X86
               operandSize,
               if  instruction.size  == 1
               &&  architecture      < InstructionSet::amd64
-              &&  features.hazFeature ( AssemblyFeatures::RandomOpcode )
+              &&  instruction.features.hazFeature ( AssemblyFeatures::RandomOpcode )
               &&  rand::random()
               {
                 //  0x80 and 0x82 are aliases, but 0x82 is invalid for 64 bit.
@@ -227,7 +229,7 @@ impl X86
           OperandType::GeneralPurposeRegister { rex:      dstREX,       number: mut dstRegister                                     },
           OperandType::GeneralPurposeRegister { rex:      srcREX,       number: mut srcRegister                                     }
         )
-        =>  if  features.hazFeature ( AssemblyFeatures::RandomOpcode )
+        =>  if  instruction.features.hazFeature ( AssemblyFeatures::RandomOpcode )
             &&  rand::random()
             {
               instruction.encodeModRegRMdata

@@ -35,6 +35,7 @@ macro_rules! theInstruction
             Instruction
             (
               self.line,
+              self.features,
               0,
               $theInstruction,
               vec! (),
