@@ -67,10 +67,10 @@ macro_rules!  SegmentRegister
 #[derive(Clone,Copy,Debug,PartialEq,PartialOrd)]
 pub enum      SegmentRegisterNumber
 {
-  CS                                    =   0x00,
-  SS                                    =   0x01,
-  DS                                    =   0x02,
-  ES                                    =   0x03,
+  ES                                    =   0x00,
+  CS                                    =   0x01,
+  SS                                    =   0x02,
+  DS                                    =   0x03,
   FS                                    =   0x04,
   GS                                    =   0x05,
   Default                               =   0xff,
