@@ -57,6 +57,7 @@ impl X86
   theInstruction! ( cli,    InstructionType::CLI    );
   theInstruction! ( cmc,    InstructionType::CMC    );
   theInstruction! ( cmpsb,  InstructionType::CMPSB  );
+  theInstruction! ( cmpsw,  InstructionType::CMPSW  );
   theInstruction! ( cwd,    InstructionType::CWD    );
   theInstruction! ( daa,    InstructionType::DAA    );
   theInstruction! ( das,    InstructionType::DAS    );
@@ -66,16 +67,20 @@ impl X86
   theInstruction! ( iret,   InstructionType::IRET   );
   theInstruction! ( lahf,   InstructionType::LAHF   );
   theInstruction! ( lodsb,  InstructionType::LODSB  );
+  theInstruction! ( lodsw,  InstructionType::LODSW  );
   theInstruction! ( movsb,  InstructionType::MOVSB  );
+  theInstruction! ( movsw,  InstructionType::MOVSW  );
   theInstruction! ( popf,   InstructionType::POPF   );
   theInstruction! ( pushf,  InstructionType::PUSHF  );
   theInstruction! ( sahf,   InstructionType::SAHF   );
   theInstruction! ( salc,   InstructionType::SALC   );
   theInstruction! ( scasb,  InstructionType::SCASB  );
+  theInstruction! ( scasw,  InstructionType::SCASW  );
   theInstruction! ( stc,    InstructionType::STC    );
   theInstruction! ( std,    InstructionType::STD    );
   theInstruction! ( sti,    InstructionType::STI    );
   theInstruction! ( stosb,  InstructionType::STOSB  );
+  theInstruction! ( stosw,  InstructionType::STOSW  );
   theInstruction! ( wait,   InstructionType::WAIT   );
   theInstruction! ( xlat,   InstructionType::XLAT   );
 }

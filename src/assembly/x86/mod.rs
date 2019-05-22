@@ -170,74 +170,124 @@ impl X86
       //  if not possible, skip further processing of instruction
       if length != None
       {
-        match instruction.getType()
-        {
-          InstructionType::Label          ( identifier )
-          =>  {
-                if identifier < self.identifiers.len()
-                {
-                  labels[ identifier ]  =   address;
-                }
-                else
-                {
-                  instruction.print();
-                  return  Err
-                          (
-                            format!
+        length
+        = match instruction.getType()
+          {
+            InstructionType::Label          ( identifier )
+            =>  {
+                  if identifier >= self.identifiers.len()
+                  {
+                    instruction.print();
+                    return  Err
                             (
-                              "Invalid Label Number ›{}‹",
-                              identifier,
-                            )
-                          );
-                }
-                length                  =   Some  ( 0 );
-              },
-          InstructionType::AAA          =>  { instruction.setOpcode ( 0x37  );  length  = Some  ( 1 ) },
-          InstructionType::AAS          =>  { instruction.setOpcode ( 0x3f  );  length  = Some  ( 1 ) },
-          InstructionType::ADC          =>  length  = instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x10, )?,
-          InstructionType::ADD          =>  length  = instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x00, )?,
-          InstructionType::AND          =>  length  = instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x20, )?,
-          InstructionType::CBW          =>  { instruction.setOpcode ( 0x98  );  length  = Some  ( 1 ) },
-          InstructionType::CLC          =>  { instruction.setOpcode ( 0xf8  );  length  = Some  ( 1 ) },
-          InstructionType::CLD          =>  { instruction.setOpcode ( 0xfc  );  length  = Some  ( 1 ) },
-          InstructionType::CLI          =>  { instruction.setOpcode ( 0xfa  );  length  = Some  ( 1 ) },
-          InstructionType::CMC          =>  { instruction.setOpcode ( 0xf5  );  length  = Some  ( 1 ) },
-          InstructionType::CMP          =>  length  = instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x38, )?,
-          InstructionType::CMPSB        =>  { instruction.setOpcode ( 0xa6  );  length  = Some  ( 1 ) },
-          InstructionType::CWD          =>  { instruction.setOpcode ( 0x99  );  length  = Some  ( 1 ) },
-          InstructionType::DAA          =>  { instruction.setOpcode ( 0x27  );  length  = Some  ( 1 ) },
-          InstructionType::DAS          =>  { instruction.setOpcode ( 0x2f  );  length  = Some  ( 1 ) },
-          InstructionType::HLT          =>  { instruction.setOpcode ( 0xf4  );  length  = Some  ( 1 ) },
-          InstructionType::INT3         =>  { instruction.setOpcode ( 0xcc  );  length  = Some  ( 1 ) },
-          InstructionType::INTO         =>  { instruction.setOpcode ( 0xce  );  length  = Some  ( 1 ) },
-          InstructionType::IRET         =>  { instruction.setOpcode ( 0xcf  );  length  = Some  ( 1 ) },
-          InstructionType::LAHF         =>  { instruction.setOpcode ( 0x9f  );  length  = Some  ( 1 ) },
-          InstructionType::LODSB        =>  { instruction.setOpcode ( 0xac  );  length  = Some  ( 1 ) },
-          InstructionType::MOVSB        =>  { instruction.setOpcode ( 0xa4  );  length  = Some  ( 1 ) },
-          InstructionType::OR           =>  length  = instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x08, )?,
-          InstructionType::POPF         =>  { instruction.setOpcode ( 0x9d  );  length  = Some  ( 1 ) },
-          InstructionType::PUSHF        =>  { instruction.setOpcode ( 0x9c  );  length  = Some  ( 1 ) },
-          InstructionType::SAHF         =>  { instruction.setOpcode ( 0x9e  );  length  = Some  ( 1 ) },
-          InstructionType::SALC         =>  { instruction.setOpcode ( 0xd6  );  length  = Some  ( 1 ) },
-          InstructionType::SBB          =>  length  = instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x18, )?,
-          InstructionType::SCASB        =>  { instruction.setOpcode ( 0xae  );  length  = Some  ( 1 ) },
-          InstructionType::STC          =>  { instruction.setOpcode ( 0xf9  );  length  = Some  ( 1 ) },
-          InstructionType::STD          =>  { instruction.setOpcode ( 0xfd  );  length  = Some  ( 1 ) },
-          InstructionType::STI          =>  { instruction.setOpcode ( 0xfb  );  length  = Some  ( 1 ) },
-          InstructionType::STOSB        =>  { instruction.setOpcode ( 0xaa  );  length  = Some  ( 1 ) },
-          InstructionType::SUB          =>  length  = instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x28, )?,
-          InstructionType::WAIT         =>  { instruction.setOpcode ( 0xdb  );  length  = Some  ( 1 ) },
-          InstructionType::XLAT         =>  { instruction.setOpcode ( 0xd7  );  length  = Some  ( 1 ) },
-          InstructionType::XOR          =>  length  = instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x30, )?,
-          _
-          =>  {
-                instruction.print();
-                return  Err
-                        (
-                          "Unexpected Instruction. This should not happen here!".to_string()
-                        );
-              },
-        }
+                              format!
+                              (
+                                "Invalid Label Number ›{}‹",
+                                identifier,
+                              )
+                            );
+                  }
+                  labels[ identifier ]  =   address;
+                  Some  ( 0 )
+                },
+            InstructionType::AAA        =>  { instruction.setOpcode ( 0x37  );  Some  ( 1 ) },
+            InstructionType::AAD        =>  unimplemented!(),
+            InstructionType::AAM        =>  unimplemented!(),
+            InstructionType::AAS        =>  { instruction.setOpcode ( 0x3f  );  Some  ( 1 ) },
+            InstructionType::ADC        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x10, )?,
+            InstructionType::ADD        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x00, )?,
+            InstructionType::AND        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x20, )?,
+            InstructionType::CALL       =>  unimplemented!(),
+            InstructionType::CBW        =>  { instruction.setOpcode ( 0x98  );  Some  ( 1 ) },
+            InstructionType::CLC        =>  { instruction.setOpcode ( 0xf8  );  Some  ( 1 ) },
+            InstructionType::CLD        =>  { instruction.setOpcode ( 0xfc  );  Some  ( 1 ) },
+            InstructionType::CLI        =>  { instruction.setOpcode ( 0xfa  );  Some  ( 1 ) },
+            InstructionType::CMC        =>  { instruction.setOpcode ( 0xf5  );  Some  ( 1 ) },
+            InstructionType::CMP        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x38, )?,
+            InstructionType::CMPSB      =>  { instruction.setOpcode ( 0xa6  );  Some  ( 1 ) },
+            InstructionType::CMPSW      =>  { instruction.setOpcode ( 0xa7  );  Some  ( 1 ) },
+            InstructionType::CWD        =>  { instruction.setOpcode ( 0x99  );  Some  ( 1 ) },
+            InstructionType::DAA        =>  { instruction.setOpcode ( 0x27  );  Some  ( 1 ) },
+            InstructionType::DAS        =>  { instruction.setOpcode ( 0x2f  );  Some  ( 1 ) },
+            InstructionType::DEC        =>  unimplemented!(),
+            InstructionType::DIV        =>  unimplemented!(),
+            InstructionType::ESC        =>  unimplemented!(),
+            InstructionType::HLT        =>  { instruction.setOpcode ( 0xf4  );  Some  ( 1 ) },
+            InstructionType::IDIV       =>  unimplemented!(),
+            InstructionType::IMUL       =>  unimplemented!(),
+            InstructionType::IN         =>  unimplemented!(),
+            InstructionType::INC        =>  unimplemented!(),
+            InstructionType::INT        =>  unimplemented!(),
+            InstructionType::INT3       =>  { instruction.setOpcode ( 0xcc  );  Some  ( 1 ) },
+            InstructionType::INTO       =>  { instruction.setOpcode ( 0xce  );  Some  ( 1 ) },
+            InstructionType::IRET       =>  { instruction.setOpcode ( 0xcf  );  Some  ( 1 ) },
+            InstructionType::JB         =>  unimplemented!(),
+            InstructionType::JBE        =>  unimplemented!(),
+            InstructionType::JCXZ       =>  unimplemented!(),
+            InstructionType::JE         =>  unimplemented!(),
+            InstructionType::JL         =>  unimplemented!(),
+            InstructionType::JLE        =>  unimplemented!(),
+            InstructionType::JMP        =>  unimplemented!(),
+            InstructionType::JNB        =>  unimplemented!(),
+            InstructionType::JNBE       =>  unimplemented!(),
+            InstructionType::JNE        =>  unimplemented!(),
+            InstructionType::JNL        =>  unimplemented!(),
+            InstructionType::JNLE       =>  unimplemented!(),
+            InstructionType::JNO        =>  unimplemented!(),
+            InstructionType::JNP        =>  unimplemented!(),
+            InstructionType::JNS        =>  unimplemented!(),
+            InstructionType::JO         =>  unimplemented!(),
+            InstructionType::JP         =>  unimplemented!(),
+            InstructionType::JS         =>  unimplemented!(),
+            InstructionType::LAHF       =>  { instruction.setOpcode ( 0x9f  );  Some  ( 1 ) },
+            InstructionType::LDS        =>  unimplemented!(),
+            InstructionType::LEA        =>  unimplemented!(),
+            InstructionType::LES        =>  unimplemented!(),
+            InstructionType::LODSB      =>  { instruction.setOpcode ( 0xac  );  Some  ( 1 ) },
+            InstructionType::LODSW      =>  { instruction.setOpcode ( 0xad  );  Some  ( 1 ) },
+            InstructionType::LOOP       =>  unimplemented!(),
+            InstructionType::LOOPZ      =>  unimplemented!(),
+            InstructionType::LOOPNZ     =>  unimplemented!(),
+            InstructionType::MOV        =>  unimplemented!(),
+            InstructionType::MOVSB      =>  { instruction.setOpcode ( 0xa4  );  Some  ( 1 ) },
+            InstructionType::MOVSW      =>  { instruction.setOpcode ( 0xa5  );  Some  ( 1 ) },
+            InstructionType::OR         =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x08, )?,
+            InstructionType::MUL        =>  unimplemented!(),
+            InstructionType::NEG        =>  unimplemented!(),
+            InstructionType::NOT        =>  unimplemented!(),
+            InstructionType::OUT        =>  unimplemented!(),
+            InstructionType::POP        =>  unimplemented!(),
+            InstructionType::POPF       =>  { instruction.setOpcode ( 0x9d  );  Some  ( 1 ) },
+            InstructionType::PUSH       =>  unimplemented!(),
+            InstructionType::PUSHF      =>  { instruction.setOpcode ( 0x9c  );  Some  ( 1 ) },
+            InstructionType::RCL        =>  unimplemented!(),
+            InstructionType::RCR        =>  unimplemented!(),
+            InstructionType::RETF       =>  unimplemented!(),
+            InstructionType::RETN       =>  unimplemented!(),
+            InstructionType::ROL        =>  unimplemented!(),
+            InstructionType::ROR        =>  unimplemented!(),
+            InstructionType::SAHF       =>  { instruction.setOpcode ( 0x9e  );  Some  ( 1 ) },
+            InstructionType::SAL        =>  unimplemented!(),
+            InstructionType::SALC       =>  { instruction.setOpcode ( 0xd6  );  Some  ( 1 ) },
+            InstructionType::SAR        =>  unimplemented!(),
+            InstructionType::SBB        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x18, )?,
+            InstructionType::SCASB      =>  { instruction.setOpcode ( 0xae  );  Some  ( 1 ) },
+            InstructionType::SCASW      =>  { instruction.setOpcode ( 0xaf  );  Some  ( 1 ) },
+            InstructionType::SHL        =>  unimplemented!(),
+            InstructionType::SHR        =>  unimplemented!(),
+            InstructionType::STC        =>  { instruction.setOpcode ( 0xf9  );  Some  ( 1 ) },
+            InstructionType::STD        =>  { instruction.setOpcode ( 0xfd  );  Some  ( 1 ) },
+            InstructionType::STI        =>  { instruction.setOpcode ( 0xfb  );  Some  ( 1 ) },
+            InstructionType::STOSB      =>  { instruction.setOpcode ( 0xaa  );  Some  ( 1 ) },
+            InstructionType::STOSW      =>  { instruction.setOpcode ( 0xab  );  Some  ( 1 ) },
+            InstructionType::SUB        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x28, )?,
+            InstructionType::TEST       =>  unimplemented!(),
+            InstructionType::WAIT       =>  { instruction.setOpcode ( 0xdb  );  Some  ( 1 ) },
+            InstructionType::XCHG       =>  unimplemented!(),
+            InstructionType::XLAT       =>  { instruction.setOpcode ( 0xd7  );  Some  ( 1 ) },
+            InstructionType::XOR        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x30, )?,
+            _                           =>  panic!  ( "Unexpected Instruction. This should not happen here!"  ),
+          };
       }
 
       //  address calculations

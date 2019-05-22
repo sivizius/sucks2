@@ -517,12 +517,12 @@ macro_rules! nextToken
   ( rbp                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 8,  number: 5 } };
   ( rsi                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 8,  number: 6 } };
   ( rdi                 )               =>  { ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 8,  number: 7 } };
-  ( cs                  )               =>  { ExpressionToken::SegmentRegister        ( 0                                 ) };
-  ( ss                  )               =>  { ExpressionToken::SegmentRegister        ( 1                                 ) };
-  ( ds                  )               =>  { ExpressionToken::SegmentRegister        ( 2                                 ) };
-  ( es                  )               =>  { ExpressionToken::SegmentRegister        ( 3                                 ) };
-  ( fs                  )               =>  { ExpressionToken::SegmentRegister        ( 4                                 ) };
-  ( gs                  )               =>  { ExpressionToken::SegmentRegister        ( 5                                 ) };
+  ( cs                  )               =>  { ExpressionToken::SegmentRegister        ( SegmentRegisterNumber::CS         ) };
+  ( ss                  )               =>  { ExpressionToken::SegmentRegister        ( SegmentRegisterNumber::SS         ) };
+  ( ds                  )               =>  { ExpressionToken::SegmentRegister        ( SegmentRegisterNumber::DS         ) };
+  ( es                  )               =>  { ExpressionToken::SegmentRegister        ( SegmentRegisterNumber::ES         ) };
+  ( fs                  )               =>  { ExpressionToken::SegmentRegister        ( SegmentRegisterNumber::FS         ) };
+  ( gs                  )               =>  { ExpressionToken::SegmentRegister        ( SegmentRegisterNumber::GS         ) };
   ( $value:literal      )               =>  { ExpressionToken::Constant               ( $value                            ) };
 }
 
