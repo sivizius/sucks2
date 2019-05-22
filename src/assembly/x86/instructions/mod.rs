@@ -15,6 +15,8 @@ pub use super::
   },
 };
 
+use rand;
+
 pub struct Instruction
 {
   //  for debugging, writable once
@@ -196,6 +198,11 @@ impl Instruction
                         ||
                           architecture >= InstructionSet::i386
                         )
+              &&       !(
+                          self.features.hazFeature ( AssemblyFeatures::RandomOpcodeSize )
+                        &&
+                          rand::random()
+                        )
               {
                 self.theOpcode          =   Some  ( opcode  | 3 );
                 self.immediateLength    =   1;
@@ -237,6 +244,11 @@ impl Instruction
               self.immediateValue       =   value;
               if        value >= -0x80
               &&        value <=  0x7f
+              &&       !(
+                          self.features.hazFeature ( AssemblyFeatures::RandomOpcodeSize )
+                        &&
+                          rand::random()
+                        )
               {
                 self.theOpcode          =   Some  ( opcode  | 3 );
                 self.immediateLength    =   1;
