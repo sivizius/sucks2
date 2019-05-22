@@ -191,6 +191,11 @@ impl Instruction
               }
               if        value >= -0x80
               &&        value <=  0x7f
+              &&        (
+                          self.features.hazFeature  ( AssemblyFeatures::X86SignExtensionAllowed )
+                        ||
+                          architecture >= InstructionSet::i386
+                        )
               {
                 self.theOpcode          =   Some  ( opcode  | 3 );
                 self.immediateLength    =   1;
