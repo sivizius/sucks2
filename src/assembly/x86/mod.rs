@@ -175,7 +175,7 @@ impl X86
           =>  {
                 if identifier < self.identifiers.len()
                 {
-                  labels[ identifier ]    =   address;
+                  labels[ identifier ]  =   address;
                 }
                 else
                 {
@@ -189,6 +189,7 @@ impl X86
                             )
                           );
                 }
+                length                  =   Some  ( 0 );
               },
           InstructionType::AAA          =>  { instruction.setOpcode ( 0x37  );  length  = Some  ( 1 ) },
           InstructionType::AAS          =>  { instruction.setOpcode ( 0x3f  );  length  = Some  ( 1 ) },
@@ -284,6 +285,13 @@ impl X86
         if let Some ( value ) = instruction.getSIBByte()
         {
           output.push ( value );
+        }
+
+        //  Displacement Value
+        let ( length, displacement  )             =   instruction.getDisplacement();
+        for ctr                                   in  0 .. length
+        {
+          output.push ( ( ( displacement >> ( 8 * ctr ) ) & 0xff ) as u8 );
         }
 
         //  Immediate Value

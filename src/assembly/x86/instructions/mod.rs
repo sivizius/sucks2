@@ -3,6 +3,10 @@ mod zeroOperands;
 
 pub use super::
 {
+  super::
+  {
+    InstructionSet,
+  },
   operands::
   {
     Operand,
@@ -34,42 +38,55 @@ pub struct Instruction
   theOpcode:                            Option<u8>,
   theModRegRM:                          Option<u8>,
   theSIBByte:                           Option<u8>,
+  displacementLength:                   usize,
+  displacementValue:                    i128,
   immediateLength:                      usize,
   immediateValue:                       i128,
 }
 
 impl Instruction
 {
-  pub fn getBranchHint                  ( &self )     ->  u8                          { self.theBranchHint                                }
-  pub fn getImmediate                   ( &self )     ->  ( usize, i128 )             { ( self.immediateLength, self.immediateValue )     }
-  pub fn getLineNumber                  ( &self )     ->  usize                       { self.line                                         }
-  pub fn getModRegRM                    ( &self )     ->  Option<u8>                  { self.theModRegRM                                  }
-  pub fn getOpcode                      ( &self )     ->  Option<u8>                  { self.theOpcode                                    }
-  pub fn getOperands                    ( &self )     ->  Vec<OperandType>            { self.operands.clone()                             }
-  pub fn getOperandRefs                 ( &mut self ) ->  &mut Vec<OperandType>       { &mut self.operands                                }
-  pub fn getRepeat                      ( &self )     ->  u8                          { self.theRepeat                                    }
-  pub fn getREX                         ( &self )     ->  u8                          { self.theREX                                       }
-  pub fn getSegmentOverride             ( &self )     ->  u8                          { self.theSegmentOverride                           }
-  pub fn getSIBByte                     ( &self )     ->  Option<u8>                  { self.theSIBByte                                   }
-  pub fn getType                        ( &self )     ->  InstructionType             { self.instruction.clone()                          }
+  pub fn getBranchHint                  ( &self )     ->  u8                          { self.theBranchHint                                    }
+  pub fn getDisplacement                ( &self )     ->  ( usize, i128 )             { ( self.displacementLength,  self.displacementValue  ) }
+  pub fn getImmediate                   ( &self )     ->  ( usize, i128 )             { ( self.immediateLength,     self.immediateValue     ) }
+  pub fn getLineNumber                  ( &self )     ->  usize                       { self.line                                             }
+  pub fn getModRegRM                    ( &self )     ->  Option<u8>                  { self.theModRegRM                                      }
+  pub fn getOpcode                      ( &self )     ->  Option<u8>                  { self.theOpcode                                        }
+  pub fn getOperands                    ( &self )     ->  Vec<OperandType>            { self.operands.clone()                                 }
+  pub fn getOperandRefs                 ( &mut self ) ->  &mut Vec<OperandType>       { &mut self.operands                                    }
+  pub fn getRepeat                      ( &self )     ->  u8                          { self.theRepeat                                        }
+  pub fn getREX                         ( &self )     ->  u8                          { self.theREX                                           }
+  pub fn getSegmentOverride             ( &self )     ->  u8                          { self.theSegmentOverride                               }
+  pub fn getSIBByte                     ( &self )     ->  Option<u8>                  { self.theSIBByte                                       }
+  pub fn getType                        ( &self )     ->  InstructionType             { self.instruction.clone()                              }
 
-  pub fn hazAddressSizeOverride         ( &self )     ->  bool                        { self.hazAddressSizeOverride                       }
-  pub fn hazBranchHint                  ( &self )     ->  bool                        { self.theBranchHint          !=  0                 }
-  pub fn hazLock                        ( &self )     ->  bool                        { self.hazLock                                      }
-  pub fn hazOperandSizeOverride         ( &self )     ->  bool                        { self.hazOperandSizeOverride                       }
-  pub fn hazRepeat                      ( &self )     ->  bool                        { self.theRepeat              !=  0                 }
-  pub fn hazREX                         ( &self )     ->  bool                        { self.theREX                 !=  0                 }
-  pub fn hazSegmentOverride             ( &self )     ->  bool                        { self.theSegmentOverride     !=  0                 }
-  pub fn hazThreeByteVEX                ( &self )     ->  bool                        { self.hazThreeByteVEX                              }
-  pub fn hazThreeByteXOP                ( &self )     ->  bool                        { self.hazThreeByteXOP                              }
-  pub fn hazTwoByteOpcode               ( &self )     ->  bool                        { self.hazTwoByteOpcode                             }
-  pub fn hazTwoByteVEX                  ( &self )     ->  bool                        { self.hazTwoByteVEX                                }
+  pub fn hazAddressSizeOverride         ( &self )     ->  bool                        { self.hazAddressSizeOverride                           }
+  pub fn hazBranchHint                  ( &self )     ->  bool                        { self.theBranchHint          !=  0                     }
+  pub fn hazLock                        ( &self )     ->  bool                        { self.hazLock                                          }
+  pub fn hazOperandSizeOverride         ( &self )     ->  bool                        { self.hazOperandSizeOverride                           }
+  pub fn hazRepeat                      ( &self )     ->  bool                        { self.theRepeat              !=  0                     }
+  pub fn hazREX                         ( &self )     ->  bool                        { self.theREX                 !=  0                     }
+  pub fn hazSegmentOverride             ( &self )     ->  bool                        { self.theSegmentOverride     !=  0                     }
+  pub fn hazThreeByteVEX                ( &self )     ->  bool                        { self.hazThreeByteVEX                                  }
+  pub fn hazThreeByteXOP                ( &self )     ->  bool                        { self.hazThreeByteXOP                                  }
+  pub fn hazTwoByteOpcode               ( &self )     ->  bool                        { self.hazTwoByteOpcode                                 }
+  pub fn hazTwoByteVEX                  ( &self )     ->  bool                        { self.hazTwoByteVEX                                    }
 
-  pub fn orOperandSize                  ( &mut  self, size:     usize               ) { self.size                   |=  size;             }
+  pub fn orOperandSize                  ( &mut  self, size:     usize               ) { self.size                   |=  size;                 }
 
-  pub fn setAddress                     ( &mut  self, address:  InstructionAddress  ) { self.address                =   address;          }
-  pub fn setAddressSizeOverride         ( &mut  self, value:    bool                ) { self.hazAddressSizeOverride =   value;            }
-  pub fn setBranchHint                  ( &mut  self, value:    u8                  ) { self.theBranchHint          =   value;            }
+  pub fn setAddress                     ( &mut  self, address:  InstructionAddress  ) { self.address                =   address;              }
+  pub fn setAddressSizeOverride         ( &mut  self, value:    bool                ) { self.hazAddressSizeOverride =   value;                }
+  pub fn setBranchHint                  ( &mut  self, value:    u8                  ) { self.theBranchHint          =   value;                }
+  pub fn setDisplacement
+  (
+    &mut  self,
+    length:                             usize,
+    value:                              i128
+  )
+  {
+    self.displacementLength             =   length;
+    self.displacementValue              =   value;
+  }
   pub fn setImmediate
   (
     &mut  self,
@@ -93,6 +110,158 @@ impl Instruction
   pub fn setThreeByteXOP                ( &mut  self, value:    bool                ) { self.hazThreeByteXOP        =   value;            }
   pub fn setTwoByteOpcode               ( &mut  self, value:    bool                ) { self.hazTwoByteOpcode       =   value;            }
   pub fn setTwoByteVEX                  ( &mut  self, value:    bool                ) { self.hazTwoByteVEX          =   value;            }
+
+  pub fn encodeModRegRMdata
+  (
+    &mut self,
+    architecture:                       InstructionSet,
+    operandSize:                        usize,
+    opcode:                             u8,
+    mut instructionSize:                usize,
+    regRegisters:                       u8,
+    memRegisters:                       u8,
+    displacement:                       Option<i128>,
+    immediate:                          Option<i128>,
+  ) -> Result<Option<usize>, String>
+  {
+    let ( modField, dispSize  )         =   match displacement
+                                            {
+                                              None                          =>  Ok  ( ( 0xc0, 0 ) ),
+                                              Some  ( 0                   ) =>  Ok  ( ( 0x00, 0 ) ),
+                                              Some  ( -0x80   ... 0x7f    ) =>  Ok  ( ( 0x40, 1 ) ),
+                                              Some  ( -0x8000 ... 0x7fff  ) =>  Ok  ( ( 0x80, 2 ) ),
+                                              _                   =>  Err
+                                                                      (
+                                                                        format!
+                                                                        (
+                                                                          "Invalid Displacement {}",
+                                                                          self.size,
+                                                                        )
+                                                                      )
+                                            }?;
+    self.theModRegRM                    =   Some  ( modField  | regRegisters  <<  3 | memRegisters  );
+    self.displacementLength             =   dispSize;
+    if let  Some  ( dispValue ) = displacement
+    {
+      self.displacementLength           =   dispSize;
+      self.displacementValue            =   dispValue;
+    }
+    instructionSize                     +=  dispSize  + 1;
+    match self.size
+    {
+      1
+      =>  {
+            self.theOpcode              =   Some  ( opcode  | 0 );
+            if let Some ( value ) = immediate
+            {
+              self.immediateValue       =   value;
+              if  value >= -0x80
+              &&  value <=  0xff
+              {
+                self.immediateLength    =   1;
+                Ok  ( Some  ( instructionSize + 1 ) )
+              }
+              else
+              {
+                self.failOutOfBounds
+                (
+                  -0x80,
+                  0xff,
+                  value,
+                )
+              }
+            }
+            else
+            {
+              Ok  ( Some  ( instructionSize + 0 ) )
+            }
+          },
+      2
+      =>  {
+            if let Some ( value ) = immediate
+            {
+              self.immediateValue       =   value;
+              if operandSize == 4
+              {
+                self.hazOperandSizeOverride
+                                        =   true;
+                instructionSize         +=  1;
+              }
+              if        value >= -0x80
+              &&        value <=  0x7f
+              {
+                self.theOpcode          =   Some  ( opcode  | 3 );
+                self.immediateLength    =   1;
+                Ok  ( Some  ( instructionSize + 1 ) )
+              }
+              else  if  value >= -0x8000
+                    &&  value <=  0xffff
+              {
+                self.theOpcode          =   Some  ( opcode  | 1 );
+                self.immediateLength    =   2;
+                Ok  ( Some  ( instructionSize + 2 ) )
+              }
+              else
+              {
+                self.failOutOfBounds
+                (
+                  -0x8000,
+                  0xffff,
+                  value,
+                )
+              }
+            }
+            else
+            {
+              self.theOpcode            =   Some  ( opcode  | 1 );
+              Ok  ( Some  ( instructionSize + 0 ) )
+            }
+          },
+      4 if architecture >= InstructionSet::i386
+      =>  {
+            if let Some ( value ) = immediate
+            {
+              if operandSize == 2
+              {
+                self.hazOperandSizeOverride
+                                        =   true;
+                instructionSize         +=  1;
+              }
+              self.immediateValue       =   value;
+              if        value >= -0x80
+              &&        value <=  0x7f
+              {
+                self.theOpcode          =   Some  ( opcode  | 3 );
+                self.immediateLength    =   1;
+                Ok  ( Some  ( instructionSize + 1 ) )
+              }
+              else  if  value >= -0x80000000
+                    &&  value <=  0xffffffff
+              {
+                self.theOpcode          =   Some  ( opcode  | 1 );
+                self.immediateLength    =   4;
+                Ok  ( Some  ( instructionSize + 4 ) )
+              }
+              else
+              {
+                self.failOutOfBounds
+                (
+                  -0x80000000,
+                  0xffffffff,
+                  value,
+                )
+              }
+            }
+            else
+            {
+              self.theOpcode            =   Some  ( opcode  | 1 );
+              Ok  ( Some  ( instructionSize + 0 ) )
+            }
+          },
+      _
+      =>  self.failOperandSize(),
+    }
+  }
 
   pub fn fail
   (
@@ -169,6 +338,51 @@ impl Instruction
       =>  print!  ( "???"                   ),
     }
   }
+
+  pub fn failOperandSize
+  (
+    &self,
+  ) -> Result<Option<usize>, String>
+  {
+    self.fail
+    (
+      if  self.size ==  0
+      {
+        format!
+        (
+          "Operand Size not Specified",
+        )
+      }
+      else
+      {
+        format!
+        (
+          "Invalid Operand Size {}",
+          self.size,
+        )
+      }
+    )
+  }
+
+  pub fn failOutOfBounds
+  (
+    &self,
+    lowerBound:                         i128,
+    upperBound:                         i128,
+    immediate:                          i128,
+  ) -> Result<Option<usize>, String>
+  {
+    self.fail
+    (
+      format!
+      (
+        "Value Out of Bonds [{},{}] {}",
+        lowerBound,
+        upperBound,
+        immediate,
+      )
+    )
+  }
 }
 
 pub fn Instruction
@@ -203,6 +417,8 @@ pub fn Instruction
     theOpcode:                          None,
     theModRegRM:                        None,
     theSIBByte:                         None,
+    displacementLength:                 0,
+    displacementValue:                  0,
     immediateLength:                    0,
     immediateValue:                     0,
   }

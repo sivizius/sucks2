@@ -142,33 +142,6 @@ fn main () -> Result<(), &'static str>
 
   myTinaFS.addUser ( sivizius ).unwrap();
 
-  let     myCode
-  = X86 ()
-    .label( "start"                                                                                 )
-    .add  ( X86::al,                                0x23                                            )
-    .add  ( X86::ax,                                0x1337                                          )
-    .add  ( X86::bl,                                0x42                                            )
-    .add  ( X86::cx,                                0x9000                                          )
-    .add  ( X86::dx,                                x86Mem16! ( word [ bp si 0x80 - + ] )           )
-    .add  ( x86Mem16! ( word [ bp si 0x80 - + ] ),  X86::dx                                         )
-    .iret (                                                                                         )
-    ;
-
-  let mut myAssembly
-  = myCode.compile
-    (
-      InstructionSet::i8086,
-      16,
-      16,
-    ).unwrap();
-
-  let _
-  = hexDump
-  (
-    myAssembly,     48,
-    0,              0,
-  );
-
   let     myMasterBootRecord
   = MasterBootRecord
   (
