@@ -28,12 +28,27 @@ macro_rules!  declareSimpleMathInstruction
   =>  {
         pub fn $theName
         (
-          self,
+          mut self,
           dst:                          impl Operand,
           src:                          impl Operand,
         ) -> Self
         {
-          self.simpleMathInstruction  ( $theInstruction,  $theFeatures, dst,  src )
+          let ( dstThis, dstSize )      =   dst.this();
+          let ( srcThis, srcSize )      =   src.this();
+          let size                      =   ( dstSize | srcSize ) as usize;
+          self.instructions.push
+          (
+            Instruction
+            (
+              self.line,
+              self.features | $theFeatures,
+              size,
+              $theInstruction,
+              vec! ( dstThis, srcThis ),
+            )
+          );
+          self.line                     +=  1;
+          self
         }
       }
 }
@@ -48,68 +63,44 @@ impl X86
   declareSimpleMathInstruction! ( sub,  InstructionType::SUB, AssemblyFeatures::X86SignExtensionAllowed );
   declareSimpleMathInstruction! ( xor,  InstructionType::XOR, AssemblyFeatures::None                    );
   declareSimpleMathInstruction! ( cmp,  InstructionType::CMP, AssemblyFeatures::X86SignExtensionAllowed );
+}
 
-  fn simpleMathInstruction
+impl  Instruction
+{
+  pub fn compileSimpleMathInstruction
   (
-    mut self,
-    instruction:                        InstructionType,
-    features:                           AssemblyFeatures,
-    dst:                                impl Operand,
-    src:                                impl Operand,
-  ) -> Self
-  {
-    let ( dstThis, dstSize )            =   dst.this();
-    let ( srcThis, srcSize )            =   src.this();
-    let size                            =   ( dstSize | srcSize ) as usize;
-    self.instructions.push
-    (
-      Instruction
-      (
-        self.line,
-        self.features | features,
-        size,
-        instruction,
-        vec! ( dstThis, srcThis ),
-      )
-    );
-    self.line                           +=  1;
-    self
-  }
-
-  pub(in super::super) fn compileSimpleMathInstruction
-  (
-    instruction:                        &mut Instruction,
+    &mut self,
     architecture:                       InstructionSet,
     operandSize:                        usize,
     addressSize:                        usize,
     opcode:                             u8,
   ) -> Result<Option<usize>, String>
   {
-    if instruction.operands.len() == 2
+    if self.operands.len() == 2
     {
-      match ( &instruction.operands [ 0 ], &instruction.operands [ 1 ] )
+      match ( &self.operands [ 0 ], &self.operands [ 1 ] )
       {
         (
           OperandType::GeneralPurposeRegister { rex:      dstREX,       number: mut dstRegister                                     },
           OperandType::Constant               (           mut immediate                                                             )
         )
         =>  if  ( dstRegister == 0 )
-            && !( instruction.features.hazFeature ( AssemblyFeatures::RandomOpcodeSize ) && rand::random() )
+            && !( self.features.hazFeature ( AssemblyFeatures::RandomOpcodeSize ) && rand::random() )
             {
-              instruction.setImmediate ( instruction.size, immediate );
-              match instruction.size
+              self.setImmediate ( self.size, immediate );
+              match self.size
               {
                 1
                 =>  {
                       if  immediate >= -0x80
                       &&  immediate <=  0xff
                       {
-                        instruction.setOpcode                 ( opcode  | 4 );
+                        self.setOpcode                 ( opcode  | 4 );
                         Ok    ( Some  ( 2 ) )
                       }
                       else
                       {
-                        instruction.failOutOfBounds
+                        self.failOutOfBounds
                         (
                           -0x80,
                           0xff,
@@ -122,10 +113,10 @@ impl X86
                       if  immediate >= -0x8000
                       &&  immediate <=  0xffff
                       {
-                        instruction.setOpcode                 ( opcode  | 5 );
+                        self.setOpcode                 ( opcode  | 5 );
                         if operandSize == 4
                         {
-                          instruction.setOperandSizeOverride  ( true        );
+                          self.setOperandSizeOverride  ( true        );
                           Ok  ( Some  ( 4 ) )
                         }
                         else
@@ -135,7 +126,7 @@ impl X86
                       }
                       else
                       {
-                        instruction.failOutOfBounds
+                        self.failOutOfBounds
                         (
                           -0x8000,
                           0xffff,
@@ -148,10 +139,10 @@ impl X86
                       if  immediate >= -0x80000000
                       &&  immediate <=  0xffffffff
                       {
-                        instruction.setOpcode                 ( opcode  | 5 );
+                        self.setOpcode                 ( opcode  | 5 );
                         if operandSize == 2
                         {
-                          instruction.setOperandSizeOverride  ( true        );
+                          self.setOperandSizeOverride  ( true        );
                           Ok  ( Some  ( 6 ) )
                         }
                         else
@@ -161,7 +152,7 @@ impl X86
                       }
                       else
                       {
-                        instruction.failOutOfBounds
+                        self.failOutOfBounds
                         (
                           -0x80000000,
                           0xffffffff,
@@ -169,18 +160,18 @@ impl X86
                         )
                       }
                     },
-                _   =>  instruction.failOperandSize (),
+                _   =>  self.failOperandSize (),
               }
             }
             else
             {
-              instruction.encodeModRegRMdata
+              self.encodeModRegRMdata
               (
                 architecture,
                 operandSize,
-                if  instruction.size  == 1
+                if  self.size  == 1
                 &&  architecture      < InstructionSet::amd64
-                &&  instruction.features.hazFeature ( AssemblyFeatures::RandomOpcode )
+                &&  self.features.hazFeature ( AssemblyFeatures::RandomOpcode )
                 &&  rand::random()
                 {
                   //  0x80 and 0x82 are aliases, but 0x82 is invalid for 64 bit.
@@ -202,13 +193,13 @@ impl X86
           OperandType::Memory16               { segment:  dstSegment,   registers:      dstRegisters, displacement: dstDisplacement },
           OperandType::Constant               (           mut immediate                                                             )
         )
-        =>  instruction.encodeModRegRMdata
+        =>  self.encodeModRegRMdata
             (
               architecture,
               operandSize,
-              if  instruction.size  == 1
+              if  self.size  == 1
               &&  architecture      < InstructionSet::amd64
-              &&  instruction.features.hazFeature ( AssemblyFeatures::RandomOpcode )
+              &&  self.features.hazFeature ( AssemblyFeatures::RandomOpcode )
               &&  rand::random()
               {
                 //  0x80 and 0x82 are aliases, but 0x82 is invalid for 64 bit.
@@ -229,10 +220,10 @@ impl X86
           OperandType::GeneralPurposeRegister { rex:      dstREX,       number: mut dstRegister                                     },
           OperandType::GeneralPurposeRegister { rex:      srcREX,       number: mut srcRegister                                     }
         )
-        =>  if  instruction.features.hazFeature ( AssemblyFeatures::RandomOpcode )
+        =>  if  self.features.hazFeature ( AssemblyFeatures::RandomOpcode )
             &&  rand::random()
             {
-              instruction.encodeModRegRMdata
+              self.encodeModRegRMdata
               (
                 architecture,
                 operandSize,
@@ -246,7 +237,7 @@ impl X86
             }
             else
             {
-              instruction.encodeModRegRMdata
+              self.encodeModRegRMdata
               (
                 architecture,
                 operandSize,
@@ -262,7 +253,7 @@ impl X86
           OperandType::GeneralPurposeRegister { rex:      dstREX,       number:     mut dstRegister                                 },
           OperandType::Memory16               { segment:  srcSegment,   registers:      srcRegisters, displacement: srcDisplacement }
         )
-        =>  instruction.encodeModRegRMdata
+        =>  self.encodeModRegRMdata
             (
               architecture,
               operandSize,
@@ -277,7 +268,7 @@ impl X86
           OperandType::Memory16               { segment:  dstSegment,     registers:      dstRegisters, displacement: dstDisplacement },
           OperandType::GeneralPurposeRegister { rex:      srcREX,         number:     mut srcRegister                                 }
         )
-        =>  instruction.encodeModRegRMdata
+        =>  self.encodeModRegRMdata
             (
               architecture,
               operandSize,
@@ -290,13 +281,13 @@ impl X86
             ),
         ( _, _ )
         =>  {
-              instruction.fail
+              self.fail
               (
                 format!
                 (
                   "Invalid Combination of Arguments ›{}‹, ›{}‹",
-                  instruction.operands [ 0 ].to_string  ( instruction.size  ),
-                  instruction.operands [ 1 ].to_string  ( instruction.size  ),
+                  self.operands [ 0 ].to_string  ( self.size  ),
+                  self.operands [ 1 ].to_string  ( self.size  ),
                 )
               )
             },
@@ -304,12 +295,12 @@ impl X86
     }
     else
     {
-      instruction.fail
+      self.fail
       (
         format!
         (
           "Instruction Must Take Exactly 2 Arguments, got {}",
-          instruction.operands.len(),
+          self.operands.len(),
         )
       )
     }
