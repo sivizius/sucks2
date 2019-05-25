@@ -14,8 +14,8 @@ impl From<usize> for UserID
 
 pub struct User
 {
-  nickname:                             String,
-  password:                             String
+  _nickname:                            String,
+  _password:                            String
 }
 
 pub fn User
@@ -26,12 +26,12 @@ pub fn User
 {
   User
   {
-    nickname:                           nickname.to_string(),
-    password:                           password.to_string(),
+    _nickname:                          nickname.to_string(),
+    _password:                          password.to_string(),
   }
 }
 
 impl User
 {
-  
+
 }

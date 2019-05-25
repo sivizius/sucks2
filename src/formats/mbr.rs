@@ -24,9 +24,8 @@ pub enum PartitionType
 
 pub struct Partition
 {
-  bootable:                             bool,
-  partitionType:                        PartitionType,
-  
+  _bootable:                            bool,
+  _partitionType:                       PartitionType,
 }
 
 #[repr(C, packed)]
@@ -78,12 +77,12 @@ impl MasterBootRecord
       (
         Partition
         {
-          bootable:                     true,
-          partitionType:                partitionType,
+          _bootable:                    true,
+          _partitionType:               partitionType,
         }
       );
       self.ctrPartition                 +=  1;
       Ok ( self.ctrPartition - 1 )
     }
-  }  
+  }
 }

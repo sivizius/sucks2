@@ -19,7 +19,6 @@ pub fn InstructionSet
   instructionSet:                       InstructionSet,
 ) -> &'static str
 {
-  #[allow(unreachable_patterns)]
   match instructionSet
   {
     InstructionSet::i8086               =>  { "8086 (x86)"              },

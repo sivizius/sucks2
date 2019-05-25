@@ -1,11 +1,9 @@
 use super::
 {
   Instruction,
-  InstructionAddress,
   InstructionType,
   super::
   {
-    AssemblyFeatures,
     InstructionSet,
     X86,
     operands::
@@ -15,8 +13,6 @@ use super::
     },
   },
 };
-
-use rand;
 
 macro_rules! theInstruction
 {

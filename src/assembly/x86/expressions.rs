@@ -1,6 +1,5 @@
 use super::
 {
-  X86,
   memory::
   {
     Memory16Registers,
@@ -150,7 +149,7 @@ impl Expression
               let ( mulBP,  mut rest  ) =   Expression::dimension ( &mut rest,  &ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 5 } )?; //  bp
               let ( mulSI,  mut rest  ) =   Expression::dimension ( &mut rest,  &ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 6 } )?; //  si
               let ( mulDI,  mut rest  ) =   Expression::dimension ( &mut rest,  &ExpressionToken::GeneralPurposeRegister { rex:  false,  size: 2,  number: 7 } )?; //  di
-              let mut rest              =   Expression::calculate ( &mut rest )?;
+              let rest                  =   Expression::calculate ( &mut rest )?;
               if let  [ ExpressionToken::Constant ( value ) ] = rest.as_slice()
               {
                 match ( mulBX,  mulBP,  mulSI,  mulDI,  segment )

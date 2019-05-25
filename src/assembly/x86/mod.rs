@@ -175,7 +175,7 @@ impl X86
                       (
                         *reference,
                         round,
-                      )
+                      )?
               {
                 match value
                 {
@@ -345,13 +345,18 @@ impl X86
       if  done
       &&  address.done ( )
       {
-        rounds                          =   Some  ( round );
+        rounds                          =   Some  ( round + 1 );
         break;
       }
     }
 
     if let Some ( rounds  ) = rounds
     {
+      println!
+      (
+        "Compiled in {} rounds.",
+        rounds,
+      );
       //  and finally encode all teh things
       for instruction                   in  self.instructions
       {

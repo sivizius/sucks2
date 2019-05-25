@@ -3,7 +3,6 @@ use super::
   expressions::
   {
     Expression,
-    ExpressionToken,
   },
   instructions::
   {
@@ -21,16 +20,6 @@ use super::
   {
     SymbolIdentifier,
     SymbolReference,
-  },
-};
-use std::
-{
-  collections::
-  {
-    hash_map::
-    {
-      Entry,
-    },
   },
 };
 

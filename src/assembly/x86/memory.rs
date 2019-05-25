@@ -1,10 +1,5 @@
 use super::
 {
-  expressions::
-  {
-    Expression,
-    ExpressionToken,
-  },
   operands::
   {
     Operand,

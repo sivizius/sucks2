@@ -47,7 +47,7 @@ pub struct TinaFS
 {
   chunkSize:                            usize,
   countChunks:                          usize,
-  emptyChunks:                          usize,
+  _emptyChunks:                         usize,
   lstUsers:                             Vec<User>,
 }
 
@@ -66,7 +66,7 @@ pub fn TinaFS
   {
     chunkSize:                          chunkSize,
     countChunks:                        countChunks,
-    emptyChunks:                        emptyChunks,
+    _emptyChunks:                       emptyChunks,
     lstUsers:                           vec!(),
   }
 }
@@ -92,16 +92,16 @@ impl TinaFS
     //  create public bit map
     let mut pubBitMap: Vec<u8>          =   Vec::with_capacity( ( self.countChunks + 7 ) / 8 );
     pubBitMap.resize( ( self.countChunks + 7 ) / 8 , 0 );
-    let mut pubBitMap: Box<[u8]>        =   pubBitMap.into_boxed_slice();
+    let     pubBitMap: Box<[u8]>        =   pubBitMap.into_boxed_slice();
 
     //  master boot record
-    
+
 
     //  create output file
     let mut file                        =   File::create    ( fileName ).unwrap();
     file.set_len  ( ( self.chunkSize * self.countChunks ) as u64 ).unwrap();
     file.seek     ( SeekFrom::Start ( ( 0 * self.chunkSize ) as u64 ) ).unwrap();
-    
+
 
   }
 }

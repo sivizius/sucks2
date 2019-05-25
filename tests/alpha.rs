@@ -1,33 +1,9 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
-#![allow(dead_code)]
 
-#[macro_use]
 extern crate sucks2;
 use sucks2::
 {
-  assembly::
-  {
-    InstructionSet,
-    x86::
-    {
-      X86,
-      expressions::
-      {
-        Expression,
-        ExpressionToken,
-      },
-      memory::
-      {
-        Memory16,
-        Memory16Registers,
-      },
-      registers::
-      {
-        SegmentRegisterNumber,
-      },
-    },
-  },
   formats::
   {
     mbr::
@@ -42,7 +18,7 @@ use sucks2::
   },
 };
 
-fn hexDump
+fn _hexDump
 (
   buffer:                               Box<[u8]>,
   width:                                usize,

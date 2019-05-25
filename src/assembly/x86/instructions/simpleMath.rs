@@ -1,7 +1,6 @@
 use super::
 {
   Instruction,
-  InstructionAddress,
   InstructionType,
   super::
   {
@@ -78,16 +77,25 @@ impl  Instruction
   {
     if self.operands.len() == 2
     {
-      match ( &self.operands [ 0 ], &self.operands [ 1 ] )
+      match
+      (
+        &self.operands [ 0 ],
+        &self.operands [ 1 ],
+      )
       {
         (
-          OperandType::GeneralPurposeRegister { rex:      dstREX,       number: mut dstRegister                                     },
-          OperandType::Constant               (           mut immediate                                                             )
+          OperandType::GeneralPurposeRegister { rex:      dstREX,       number:     dstRegister                                     },
+          OperandType::Constant               (           immediate                                                                 )
         )
-        =>  if  ( dstRegister == 0 )
+        =>  if  ( *dstRegister == 0 )
             && !( self.features.hazFeature ( AssemblyFeatures::RandomOpcodeSize ) && rand::random() )
             {
-              self.setImmediate ( self.size, immediate );
+              let immediate             =   *immediate;
+              self.setImmediate
+              (
+                self.size,
+                immediate,
+              );
               match self.size
               {
                 1
@@ -184,14 +192,14 @@ impl  Instruction
                 },
                 1,
                 0,
-                dstRegister | opcode,
+                *dstRegister | opcode,
                 None,
-                Some  ( immediate ),
+                Some  ( *immediate ),
               )
             },
         (
           OperandType::Memory16               { segment:  dstSegment,   registers:      dstRegisters, displacement: dstDisplacement },
-          OperandType::Constant               (           mut immediate                                                             )
+          OperandType::Constant               (           immediate                                                                 )
         )
         =>  self.encodeModRegRMdata
             (
@@ -214,11 +222,11 @@ impl  Instruction
               0,
               *dstRegisters as  u8  | opcode,
               Some  ( *dstDisplacement  ),
-              Some  ( immediate ),
+              Some  ( *immediate ),
             ),
         (
-          OperandType::GeneralPurposeRegister { rex:      dstREX,       number: mut dstRegister                                     },
-          OperandType::GeneralPurposeRegister { rex:      srcREX,       number: mut srcRegister                                     }
+          OperandType::GeneralPurposeRegister { rex:      dstREX,       number:     dstRegister                                     },
+          OperandType::GeneralPurposeRegister { rex:      srcREX,       number:     srcRegister                                     }
         )
         =>  if  self.features.hazFeature ( AssemblyFeatures::RandomOpcode )
             &&  rand::random()
@@ -229,8 +237,8 @@ impl  Instruction
                 operandSize,
                 opcode | 2,
                 1,
-                dstRegister,
-                srcRegister,
+                *dstRegister,
+                *srcRegister,
                 None,
                 None,
               )
@@ -243,14 +251,14 @@ impl  Instruction
                 operandSize,
                 opcode | 0,
                 1,
-                srcRegister <<  3,
-                dstRegister,
+                *srcRegister <<  3,
+                *dstRegister,
                 None,
                 None,
               )
             },
         (
-          OperandType::GeneralPurposeRegister { rex:      dstREX,       number:     mut dstRegister                                 },
+          OperandType::GeneralPurposeRegister { rex:      dstREX,       number:         dstRegister                                 },
           OperandType::Memory16               { segment:  srcSegment,   registers:      srcRegisters, displacement: srcDisplacement }
         )
         =>  self.encodeModRegRMdata
@@ -259,14 +267,14 @@ impl  Instruction
               operandSize,
               opcode | 2,
               1,
-              dstRegister,
+              *dstRegister,
               *srcRegisters as  u8,
               Some  ( *srcDisplacement  ),
               None,
             ),
         (
           OperandType::Memory16               { segment:  dstSegment,     registers:      dstRegisters, displacement: dstDisplacement },
-          OperandType::GeneralPurposeRegister { rex:      srcREX,         number:     mut srcRegister                                 }
+          OperandType::GeneralPurposeRegister { rex:      srcREX,         number:         srcRegister                                 }
         )
         =>  self.encodeModRegRMdata
             (
@@ -274,7 +282,7 @@ impl  Instruction
               operandSize,
               opcode | 0,
               1,
-              srcRegister,
+              *srcRegister,
               *dstRegisters as  u8,
               Some  ( *dstDisplacement  ),
               None,

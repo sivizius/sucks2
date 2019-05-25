@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
-#![allow(dead_code)]
 
 #[macro_use]
 extern crate sucks2;
@@ -19,7 +18,6 @@ use sucks2::
       },
       memory::
       {
-        Memory16,
         Memory16Registers,
       },
       registers::
@@ -30,18 +28,6 @@ use sucks2::
       {
         Symbol,
       },
-    },
-  },
-  formats::
-  {
-    mbr::
-    {
-      MasterBootRecord,
-    },
-    tinaFS::
-    {
-      TinaFS,
-      User,
     },
   },
 };
@@ -62,7 +48,7 @@ use std::
   },
 };
 
-fn hexDump
+fn _hexDump
 (
   buffer:                               Box<[u8]>,
   width:                                usize,
@@ -171,7 +157,7 @@ fn main () -> Result<(), &'static str>
     .iret (                                                                                         )
     ;
 
-  let mut myAssembly
+  let myAssembly
   = myCode.compile
     (
       InstructionSet::i8086,
@@ -184,13 +170,13 @@ fn main () -> Result<(), &'static str>
   file.write_all  ( &myAssembly ).unwrap();
   file.sync_all   (             ).unwrap();
 
-  let mut cmdDisasm                     =   Command::new("objdump")
-                                            .arg("--disassemble-all")
-                                            .arg("--disassembler-options=intel")
-                                            .arg("--target=binary")
-                                            .arg("--architecture=i8086")
-                                            .arg("build/8086.bin")
-                                            .status()
-                                            .unwrap();
+  Command::new("objdump")
+  .arg("--disassemble-all")
+  .arg("--disassembler-options=intel")
+  .arg("--target=binary")
+  .arg("--architecture=i8086")
+  .arg("build/8086.bin")
+  .status()
+  .unwrap();
   Ok(())
 }

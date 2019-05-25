@@ -165,7 +165,7 @@ impl        SymbolList
     round:                              usize,
   ) -> Option<&'static str>
   {
-    if refer  < self.symbols.len()
+    if refer  < self.symbols.len  ( )
     {
       if self.symbols [ refer ].first.is_none ( )
       {
@@ -180,20 +180,42 @@ impl        SymbolList
       Some  ( "Invalid Reference" )
     }
   }
+  pub fn myName
+  (
+    &mut self,
+    refer:                              SymbolReference,
+  ) ->  Result<String, &'static str>
+  {
+    if refer  < self.symbols.len  ( )
+    {
+      Ok  ( self.symbols  [ refer ].title.to_string ( ) )
+    }
+    else
+    {
+      Err  ( "Invalid Reference" )
+    }
+  }
   pub fn obtain
   (
     &self,
     refer:                              SymbolReference,
     round:                              usize,
-  ) ->  Option<OperandType>
+  ) ->  Result<Option<OperandType>, &'static str>
   {
-    if  self.symbols  [ refer ].round ==  round
+    if refer  < self.symbols.len  ( )
     {
-      self.symbols  [ refer ].value.clone ( )
+      if  self.symbols  [ refer ].round ==  round
+      {
+        Ok  ( self.symbols  [ refer ].value.clone ( ) )
+      }
+      else
+      {
+        Ok  ( self.symbols  [ refer ].first.clone ( ) )
+      }
     }
     else
     {
-      self.symbols  [ refer ].first.clone ( )
+      Err  ( "Invalid Reference" )
     }
   }
 }
