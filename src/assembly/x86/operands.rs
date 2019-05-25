@@ -5,6 +5,10 @@ use super::
     Expression,
     ExpressionToken,
   },
+  instructions::
+  {
+    InstructionAddress,
+  },
   memory::
   {
     Memory16Registers,
@@ -12,6 +16,21 @@ use super::
   registers::
   {
     SegmentRegisterNumber,
+  },
+  symbols::
+  {
+    SymbolIdentifier,
+    SymbolReference,
+  },
+};
+use std::
+{
+  collections::
+  {
+    hash_map::
+    {
+      Entry,
+    },
   },
 };
 
@@ -25,23 +44,35 @@ impl Operand                            for i128
   fn this   ( self ) -> ( OperandType, usize ) { ( OperandType::Constant ( self ), 0 ) }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone)]
 pub enum OperandType
 {
-  //  label might be removed, because it is just a abstract constant
-  Label                                 ( &'static str ),
-
-  //  expressions cannot be used directly and have to be resolved to a less abstract operand type
-  Expression                            ( Expression ),
-  Constant                              ( i128 ),
-  // segment + base + scale * index + label + offset
+  //  symbols     are an abstract type, which cannot be encoded, but can be resolved to a reference by as hash map look up
+  Symbol                                ( SymbolIdentifier      ),
+  //  references  are an abstract type, which cannot be encoded, but are a reference to another operand type stored in list of symbols
+  Reference                             ( SymbolReference       ),
+  //  addresses   are an abstract type, which cannot be encoded, but a displacement can be calculated
+  Address                               ( InstructionAddress    ),
+  //  expressions are an abstract type, which cannot be encoded, but can be resolved to another operand type
+  Expression                            ( Expression            ),
+  //  constants   are immediate values without size, which must be obtained by context
+  Constant                              ( i128                  ),
+  //  relative addressing:  address +=                                                    displacement
+  Displacement                          ( i128                  ),
+  //  direct addressing:    address =   16  * segment                                   + displacement
+  Intersegment
+  {
+    offset:                             i128,
+    segment:                            i128,
+  },
+  //  indirect addressing:  address =   16  * segment register  + registers             + displacement
   Memory16
   {
     segment:                            SegmentRegisterNumber,
     registers:                          Memory16Registers,
     displacement:                       i128,
   },
-  // segment + registers + label + offset
+  //  indirect addressing:  address =   16  * segment register  + base  + scale * index + displacement
   Memory32
   {
     segment:                            SegmentRegisterNumber,
@@ -50,16 +81,17 @@ pub enum OperandType
     index:                              u8,
     displacement:                       i128,
   },
+  //  registers
   GeneralPurposeRegister
   {
     rex:                                bool,
     number:                             u8,
   },
   SegmentRegister                       ( SegmentRegisterNumber ),
-  ControlRegister                       ( u8 ),
-  DebugRegister                         ( u8 ),
-  TestRegister                          ( u8 ),
-  MulitMediaRegister                    ( u8 ),
+  ControlRegister                       ( u8                    ),
+  DebugRegister                         ( u8                    ),
+  TestRegister                          ( u8                    ),
+  MulitMediaRegister                    ( u8                    ),
 }
 
 impl OperandType
@@ -80,10 +112,23 @@ impl OperandType
   {
     match self
     {
-      OperandType::Label                  ( name )
-      =>  format! ( "@{}", name ),
+      OperandType::Symbol                 ( name )
+      =>  format! ( "${{{}}}", name ),
+      OperandType::Reference              ( reference )
+      =>  format! ( "$({})", reference),
       OperandType::Constant               ( constant )
-      =>  format! ( "{}", constant ),
+      =>  format! ( "({})", constant ),
+      OperandType::Displacement           ( constant )
+      =>  if *constant < 0
+          {
+            format! ( "@-{:04x}", -constant )
+          }
+          else
+          {
+            format! ( "@+{:04x}", constant )
+          },
+      OperandType::Intersegment           { offset, segment }
+      =>  format! ( "@{}:{}", segment, offset ),
       OperandType::Expression             ( expression )
       =>  format! ( "{:?}", expression ),
       OperandType::Memory16               { segment, registers, displacement }
@@ -218,6 +263,8 @@ impl OperandType
               _   =>  format! ( "({})mm{}?",  size, register  ),
             }
           },
+      _
+      =>  unimplemented!(),
     }
   }
 }

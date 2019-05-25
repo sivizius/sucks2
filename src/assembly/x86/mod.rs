@@ -5,6 +5,7 @@ mod instructions;
 pub mod memory;
 mod operands;
 pub mod registers;
+pub mod symbols;
 
 pub use self::
 {
@@ -38,6 +39,11 @@ pub use self::
   {
     OperandType,
   },
+  symbols::
+  {
+    Symbol,
+    SymbolList,
+  },
 };
 
 pub use super::
@@ -48,10 +54,6 @@ pub use super::
 
 use std::
 {
-  collections::
-  {
-    HashMap,
-  },
   string::
   {
     String,
@@ -61,7 +63,6 @@ use std::
 pub struct X86
 {
   instructions:                         Vec<Instruction>,
-  identifiers:                          HashMap<String, usize>,
   line:                                 usize,
   features:                             AssemblyFeatures,
 }
@@ -73,7 +74,6 @@ pub fn X86
   X86
   {
     instructions:                       vec!(),
-    identifiers:                        HashMap::new(),
     line:                               0,
     features:                           AssemblyFeatures::Default,
   }
@@ -84,7 +84,7 @@ impl X86
   pub fn label
   (
     mut self,
-    name:                               &str,
+    name:                               &'static str,
   ) -> Self
   {
     self.instructions.push
@@ -94,16 +94,11 @@ impl X86
         self.line,
         self.features,
         0,
-        InstructionType::Label ( self.identifiers.len() ),
+        InstructionType::Label ( name ),
         vec!(),
       )
     );
     self.line                           += 1;
-    self.identifiers.insert
-    (
-      String::from( name ),
-      self.identifiers.len()
-    );
     self
   }
 
@@ -114,6 +109,7 @@ impl X86
     mut architecture:                   InstructionSet,
     mut operandSize:                    usize,
     mut addressSize:                    usize,
+    maxRounds:                          usize,
   ) -> Result<Box<[u8]>, String>
   {
     let mut output:             Vec<u8> =   vec!();
@@ -126,235 +122,305 @@ impl X86
       return Err ( format!( "Instruction Set ›{}‹ is 16 Bit Only", InstructionSet( architecture ) ) );
     }
 
-    let mut labels:                     Vec<InstructionAddress>
-                                        =   vec!();
-    labels.resize
-    (
-      self.identifiers.len(),
-      InstructionAddress::None
-    );
-
-    let mut address
-    = InstructionAddress::Some
-      {
-        base:                           0,
-        offs:                           0,
-      };
-
-    //  for every instruction: try to compile
-    for mut instruction                 in  &mut self.instructions
+    let mut symbols                     =   SymbolList  ( );
+    let mut rounds                      =   None;
+    for round                           in  0 .. maxRounds
     {
-      let mut length                    =   Some ( 0 );
+      println!  ( "round: {}",  round );
+      let mut done                      =   true;
+      let mut address                   =   InstructionAddress
+                                            {
+                                              base: 0,
+                                              offs: 0,
+                                            };
 
-      //  try to resolve expressions
-      let mut size                      =   0;
-      for operand                       in  instruction.getOperandRefs()
+      //  for every instruction: try to compile
+      for mut instruction               in  &mut self.instructions
       {
-        if let OperandType::Expression ( expression ) = operand
+        let mut length                  =   Some ( 0 );
+
+        //  try to resolve expressions and labels
+        let mut size                    =   0;
+        for operand                     in  instruction.getOperandRefs()
         {
-          let ( newSize,  newOperand  ) =   expression.solve()?;
-          *operand                      =   newOperand;
-          if let  Some  ( newSize  ) = newSize
+          if    let OperandType::Expression ( expression  ) = operand
           {
-            size                        |=  newSize;
+            let
+            (
+              newSize,
+              newOperand,
+            )                           =   expression.solve()?;
+            *operand                    =   newOperand;
+            if let  Some  ( newSize  ) = newSize
+            {
+              size                      |=  newSize;
+            }
+            else
+            {
+              length                    =   None;
+            }
+            //println!  ( "{:?}",  *operand );
           }
           else
           {
-            length                      =   None;
+            if  let OperandType::Symbol     ( identifier  ) = operand
+            {
+              let reference             =   symbols.expect  ( identifier  );
+              *operand                  =   OperandType::Reference  ( reference );
+            }
+            if  let OperandType::Reference  ( reference   ) = operand
+            {
+              if let  Some ( value )
+                  =   symbols.obtain
+                      (
+                        *reference,
+                        round,
+                      )
+              {
+                match value
+                {
+                  OperandType::Address  ( destination )
+                  =>  if let Some ( displacement  ) = address.diff  ( destination )
+                      {
+                        *operand        =   OperandType::Displacement ( displacement  );
+                      },
+                  _
+                  =>  *operand          =   value,
+                }
+              }
+              else
+              {
+                done                    =   false;
+              }
+            }
           }
-          //println!  ( "{:?}",  *operand );
         }
-      }
-      instruction.orOperandSize ( size  );
+        instruction.orOperandSize ( size  );
 
-      //  if not possible, skip further processing of instruction
-      if length != None
-      {
-        length
-        = match instruction.getType()
-          {
-            InstructionType::Label          ( identifier )
-            =>  {
-                  if identifier >= self.identifiers.len()
+        //  if not possible, skip further processing of instruction
+        if length != None
+        {
+          //  minimum length, instruction might be longer
+          length
+          = match instruction.getType()
+            {
+              InstructionType::Label          ( identifier  )
+              =>  if let  Ok ( reference )
+                      =   symbols.define
+                          (
+                            identifier,
+                            Some  ( OperandType::Address  ( address ) ),
+                            round,
+                          )
                   {
-                    instruction.print();
-                    return  Err
-                            (
-                              format!
-                              (
-                                "Invalid Label Number ›{}‹",
-                                identifier,
-                              )
-                            );
+                    instruction.setType
+                    (
+                      InstructionType::Reference  ( reference ),
+                    );
+                    Ok  ( Some  ( 0 ) )
                   }
-                  labels[ identifier ]  =   address;
-                  Some  ( 0 )
-                },
-            InstructionType::AAA        =>  { instruction.setOpcode ( 0x37  );  Some  ( 1 ) },
-            InstructionType::AAD        =>  unimplemented!(),
-            InstructionType::AAM        =>  unimplemented!(),
-            InstructionType::AAS        =>  { instruction.setOpcode ( 0x3f  );  Some  ( 1 ) },
-            InstructionType::ADC        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x10, )?,
-            InstructionType::ADD        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x00, )?,
-            InstructionType::AND        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x20, )?,
-            InstructionType::CALL       =>  unimplemented!(),
-            InstructionType::CBW        =>  { instruction.setOpcode ( 0x98  );  Some  ( 1 ) },
-            InstructionType::CLC        =>  { instruction.setOpcode ( 0xf8  );  Some  ( 1 ) },
-            InstructionType::CLD        =>  { instruction.setOpcode ( 0xfc  );  Some  ( 1 ) },
-            InstructionType::CLI        =>  { instruction.setOpcode ( 0xfa  );  Some  ( 1 ) },
-            InstructionType::CMC        =>  { instruction.setOpcode ( 0xf5  );  Some  ( 1 ) },
-            InstructionType::CMP        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x38, )?,
-            InstructionType::CMPSB      =>  { instruction.setOpcode ( 0xa6  );  Some  ( 1 ) },
-            InstructionType::CMPSW      =>  { instruction.setOpcode ( 0xa7  );  Some  ( 1 ) },
-            InstructionType::CWD        =>  { instruction.setOpcode ( 0x99  );  Some  ( 1 ) },
-            InstructionType::DAA        =>  { instruction.setOpcode ( 0x27  );  Some  ( 1 ) },
-            InstructionType::DAS        =>  { instruction.setOpcode ( 0x2f  );  Some  ( 1 ) },
-            InstructionType::DEC        =>  unimplemented!(),
-            InstructionType::DIV        =>  unimplemented!(),
-            InstructionType::ESC        =>  unimplemented!(),
-            InstructionType::HLT        =>  { instruction.setOpcode ( 0xf4  );  Some  ( 1 ) },
-            InstructionType::IDIV       =>  unimplemented!(),
-            InstructionType::IMUL       =>  unimplemented!(),
-            InstructionType::IN         =>  unimplemented!(),
-            InstructionType::INC        =>  unimplemented!(),
-            InstructionType::INT        =>  unimplemented!(),
-            InstructionType::INT3       =>  { instruction.setOpcode ( 0xcc  );  Some  ( 1 ) },
-            InstructionType::INTO       =>  { instruction.setOpcode ( 0xce  );  Some  ( 1 ) },
-            InstructionType::IRET       =>  { instruction.setOpcode ( 0xcf  );  Some  ( 1 ) },
-            InstructionType::JB         =>  unimplemented!(),
-            InstructionType::JBE        =>  unimplemented!(),
-            InstructionType::JCXZ       =>  unimplemented!(),
-            InstructionType::JE         =>  unimplemented!(),
-            InstructionType::JL         =>  unimplemented!(),
-            InstructionType::JLE        =>  unimplemented!(),
-            InstructionType::JMP        =>  unimplemented!(),
-            InstructionType::JNB        =>  unimplemented!(),
-            InstructionType::JNBE       =>  unimplemented!(),
-            InstructionType::JNE        =>  unimplemented!(),
-            InstructionType::JNL        =>  unimplemented!(),
-            InstructionType::JNLE       =>  unimplemented!(),
-            InstructionType::JNO        =>  unimplemented!(),
-            InstructionType::JNP        =>  unimplemented!(),
-            InstructionType::JNS        =>  unimplemented!(),
-            InstructionType::JO         =>  unimplemented!(),
-            InstructionType::JP         =>  unimplemented!(),
-            InstructionType::JS         =>  unimplemented!(),
-            InstructionType::LAHF       =>  { instruction.setOpcode ( 0x9f  );  Some  ( 1 ) },
-            InstructionType::LDS        =>  unimplemented!(),
-            InstructionType::LEA        =>  unimplemented!(),
-            InstructionType::LES        =>  unimplemented!(),
-            InstructionType::LODSB      =>  { instruction.setOpcode ( 0xac  );  Some  ( 1 ) },
-            InstructionType::LODSW      =>  { instruction.setOpcode ( 0xad  );  Some  ( 1 ) },
-            InstructionType::LOOP       =>  unimplemented!(),
-            InstructionType::LOOPZ      =>  unimplemented!(),
-            InstructionType::LOOPNZ     =>  unimplemented!(),
-            InstructionType::MOV        =>  unimplemented!(),
-            InstructionType::MOVSB      =>  { instruction.setOpcode ( 0xa4  );  Some  ( 1 ) },
-            InstructionType::MOVSW      =>  { instruction.setOpcode ( 0xa5  );  Some  ( 1 ) },
-            InstructionType::OR         =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x08, )?,
-            InstructionType::MUL        =>  unimplemented!(),
-            InstructionType::NEG        =>  unimplemented!(),
-            InstructionType::NOT        =>  unimplemented!(),
-            InstructionType::OUT        =>  unimplemented!(),
-            InstructionType::POP        =>  unimplemented!(),
-            InstructionType::POPF       =>  { instruction.setOpcode ( 0x9d  );  Some  ( 1 ) },
-            InstructionType::PUSH       =>  unimplemented!(),
-            InstructionType::PUSHF      =>  { instruction.setOpcode ( 0x9c  );  Some  ( 1 ) },
-            InstructionType::RCL        =>  unimplemented!(),
-            InstructionType::RCR        =>  unimplemented!(),
-            InstructionType::RETF       =>  unimplemented!(),
-            InstructionType::RETN       =>  unimplemented!(),
-            InstructionType::ROL        =>  unimplemented!(),
-            InstructionType::ROR        =>  unimplemented!(),
-            InstructionType::SAHF       =>  { instruction.setOpcode ( 0x9e  );  Some  ( 1 ) },
-            InstructionType::SAL        =>  unimplemented!(),
-            InstructionType::SALC       =>  { instruction.setOpcode ( 0xd6  );  Some  ( 1 ) },
-            InstructionType::SAR        =>  unimplemented!(),
-            InstructionType::SBB        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x18, )?,
-            InstructionType::SCASB      =>  { instruction.setOpcode ( 0xae  );  Some  ( 1 ) },
-            InstructionType::SCASW      =>  { instruction.setOpcode ( 0xaf  );  Some  ( 1 ) },
-            InstructionType::SHL        =>  unimplemented!(),
-            InstructionType::SHR        =>  unimplemented!(),
-            InstructionType::STC        =>  { instruction.setOpcode ( 0xf9  );  Some  ( 1 ) },
-            InstructionType::STD        =>  { instruction.setOpcode ( 0xfd  );  Some  ( 1 ) },
-            InstructionType::STI        =>  { instruction.setOpcode ( 0xfb  );  Some  ( 1 ) },
-            InstructionType::STOSB      =>  { instruction.setOpcode ( 0xaa  );  Some  ( 1 ) },
-            InstructionType::STOSW      =>  { instruction.setOpcode ( 0xab  );  Some  ( 1 ) },
-            InstructionType::SUB        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x28, )?,
-            InstructionType::TEST       =>  unimplemented!(),
-            InstructionType::WAIT       =>  { instruction.setOpcode ( 0xdb  );  Some  ( 1 ) },
-            InstructionType::XCHG       =>  unimplemented!(),
-            InstructionType::XLAT       =>  { instruction.setOpcode ( 0xd7  );  Some  ( 1 ) },
-            InstructionType::XOR        =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x30, )?,
-            _                           =>  panic!  ( "Unexpected Instruction. This should not happen here!"  ),
-          };
+                  else
+                  {
+                    Err ( "Label already defined".to_string ( ) )
+                  },
+              InstructionType::Reference      ( reference   )
+              =>  if let  Some ( error )
+                      =   symbols.modify
+                          (
+                            reference,
+                            Some  ( OperandType::Address  ( address ) ),
+                            round,
+                          )
+                  {
+                    Err ( error.to_string ( ) )
+                  }
+                  else
+                  {
+                    Ok  ( Some  ( 0 ) )
+                  },
+              InstructionType::AAA      =>  instruction.compileZeroOperandInstruction (                                           0x37, ),
+              InstructionType::AAD      =>  unimplemented!(),
+              InstructionType::AAM      =>  unimplemented!(),
+              InstructionType::AAS      =>  instruction.compileZeroOperandInstruction (                                           0x3f, ),
+              InstructionType::ADC      =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x10, ),
+              InstructionType::ADD      =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x00, ),
+              InstructionType::AND      =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x20, ),
+              InstructionType::CALL     =>  unimplemented!(),
+              InstructionType::CBW      =>  instruction.compileZeroOperandInstruction (                                           0x98, ),
+              InstructionType::CLC      =>  instruction.compileZeroOperandInstruction (                                           0xf8, ),
+              InstructionType::CLD      =>  instruction.compileZeroOperandInstruction (                                           0xfc, ),
+              InstructionType::CLI      =>  instruction.compileZeroOperandInstruction (                                           0xfa, ),
+              InstructionType::CMC      =>  instruction.compileZeroOperandInstruction (                                           0xf5, ),
+              InstructionType::CMP      =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x38, ),
+              InstructionType::CMPSB    =>  instruction.compileZeroOperandInstruction (                                           0xa6, ),
+              InstructionType::CMPSW    =>  instruction.compileZeroOperandInstruction (                                           0xa7, ),
+              InstructionType::CWD      =>  instruction.compileZeroOperandInstruction (                                           0x99, ),
+              InstructionType::DAA      =>  instruction.compileZeroOperandInstruction (                                           0x27, ),
+              InstructionType::DAS      =>  instruction.compileZeroOperandInstruction (                                           0x2f, ),
+              InstructionType::DEC      =>  unimplemented!(),
+              InstructionType::DIV      =>  unimplemented!(),
+              InstructionType::ESC      =>  unimplemented!(),
+              InstructionType::HLT      =>  instruction.compileZeroOperandInstruction (                                           0xf4, ),
+              InstructionType::IDIV     =>  unimplemented!(),
+              InstructionType::IMUL     =>  unimplemented!(),
+              InstructionType::IN       =>  unimplemented!(),
+              InstructionType::INC      =>  unimplemented!(),
+              InstructionType::INT      =>  unimplemented!(),
+              InstructionType::INT3     =>  instruction.compileZeroOperandInstruction (                                           0xcc, ),
+              InstructionType::INTO     =>  instruction.compileZeroOperandInstruction (                                           0xce, ),
+              InstructionType::IRET     =>  instruction.compileZeroOperandInstruction (                                           0xcf, ),
+              InstructionType::JB       =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x72, ),
+              InstructionType::JBE      =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x76, ),
+              InstructionType::JCXZ     =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0xe3, ),
+              InstructionType::JE       =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x74, ),
+              InstructionType::JL       =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x7c, ),
+              InstructionType::JLE      =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x7e, ),
+              InstructionType::JMP      =>  unimplemented!(),
+              InstructionType::JNB      =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x73, ),
+              InstructionType::JNBE     =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x77, ),
+              InstructionType::JNE      =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x75, ),
+              InstructionType::JNL      =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x7d, ),
+              InstructionType::JNLE     =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x7f, ),
+              InstructionType::JNO      =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x71, ),
+              InstructionType::JNP      =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x7b, ),
+              InstructionType::JNS      =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x79, ),
+              InstructionType::JO       =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x70, ),
+              InstructionType::JP       =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x7a, ),
+              InstructionType::JS       =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0x78, ),
+              InstructionType::LAHF     =>  instruction.compileZeroOperandInstruction (                                           0x9f, ),
+              InstructionType::LDS      =>  unimplemented!(),
+              InstructionType::LEA      =>  unimplemented!(),
+              InstructionType::LES      =>  unimplemented!(),
+              InstructionType::LODSB    =>  instruction.compileZeroOperandInstruction (                                           0xac, ),
+              InstructionType::LODSW    =>  instruction.compileZeroOperandInstruction (                                           0xad, ),
+              InstructionType::LOOP     =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0xe2, ),
+              InstructionType::LOOPZ    =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0xe1, ),
+              InstructionType::LOOPNZ   =>  instruction.compileJumpInstruction        ( architecture, operandSize,                0xe0, ),
+              InstructionType::MOV      =>  unimplemented!(),
+              InstructionType::MOVSB    =>  instruction.compileZeroOperandInstruction (                                           0xa4, ),
+              InstructionType::MOVSW    =>  instruction.compileZeroOperandInstruction (                                           0xa5, ),
+              InstructionType::OR       =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x08, ),
+              InstructionType::MUL      =>  unimplemented!(),
+              InstructionType::NEG      =>  unimplemented!(),
+              InstructionType::NOT      =>  unimplemented!(),
+              InstructionType::OUT      =>  unimplemented!(),
+              InstructionType::POP      =>  unimplemented!(),
+              InstructionType::POPF     =>  instruction.compileZeroOperandInstruction (                                           0x9d, ),
+              InstructionType::PUSH     =>  unimplemented!(),
+              InstructionType::PUSHF    =>  instruction.compileZeroOperandInstruction (                                           0x9c, ),
+              InstructionType::RCL      =>  unimplemented!(),
+              InstructionType::RCR      =>  unimplemented!(),
+              InstructionType::RETF     =>  unimplemented!(),
+              InstructionType::RETN     =>  unimplemented!(),
+              InstructionType::ROL      =>  unimplemented!(),
+              InstructionType::ROR      =>  unimplemented!(),
+              InstructionType::SAHF     =>  instruction.compileZeroOperandInstruction (                                           0x9e, ),
+              InstructionType::SAL      =>  unimplemented!(),
+              InstructionType::SALC     =>  instruction.compileZeroOperandInstruction (                                           0xd6, ),
+              InstructionType::SAR      =>  unimplemented!(),
+              InstructionType::SBB      =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x18, ),
+              InstructionType::SCASB    =>  instruction.compileZeroOperandInstruction (                                           0xae, ),
+              InstructionType::SCASW    =>  instruction.compileZeroOperandInstruction (                                           0xaf, ),
+              InstructionType::SHL      =>  unimplemented!(),
+              InstructionType::SHR      =>  unimplemented!(),
+              InstructionType::STC      =>  instruction.compileZeroOperandInstruction (                                           0xf9, ),
+              InstructionType::STD      =>  instruction.compileZeroOperandInstruction (                                           0xfd, ),
+              InstructionType::STI      =>  instruction.compileZeroOperandInstruction (                                           0xfb, ),
+              InstructionType::STOSB    =>  instruction.compileZeroOperandInstruction (                                           0xaa, ),
+              InstructionType::STOSW    =>  instruction.compileZeroOperandInstruction (                                           0xab, ),
+              InstructionType::SUB      =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x28, ),
+              InstructionType::TEST     =>  unimplemented!(),
+              InstructionType::WAIT     =>  instruction.compileZeroOperandInstruction (                                           0xdb, ),
+              InstructionType::XCHG     =>  unimplemented!(),
+              InstructionType::XLAT     =>  instruction.compileZeroOperandInstruction (                                           0xd7, ),
+              InstructionType::XOR      =>  instruction.compileSimpleMathInstruction  ( architecture, operandSize,  addressSize,  0x30, ),
+              _                         =>  panic!  ( "Unexpected Instruction. This should not happen here!"  ),
+            }?;
+        }
+
+        //  address calculations
+        instruction.setAddress  ( address );
+        address.add             ( length  );
       }
-
-      //  address calculations
-      instruction.setAddress  ( address );
-      address.add             ( length  )?;
-
-      //  debug instruction
-      instruction.print       ();
-    }
-
-    //  and finally encode all teh things
-    for instruction                     in  self.instructions
-    {
-      if let Some ( opcode ) = instruction.getOpcode()
+      if  done
+      &&  address.done ( )
       {
-        //  Group 1
-        if instruction.hazLock()                  { output.push ( Lock                              ); }
-        if instruction.hazRepeat()                { output.push ( instruction.getRepeat()           ); }
-
-        //  Group 2
-        if instruction.hazSegmentOverride()       { output.push ( instruction.getSegmentOverride()  ); }
-        if instruction.hazBranchHint()            { output.push ( instruction.getBranchHint()       ); }
-
-        //  Group 3
-        if instruction.hazOperandSizeOverride()   { output.push ( OperandSizeOverride               ); }
-
-        //  Group 4
-        if instruction.hazAddressSizeOverride()   { output.push ( AddressSizeOverride               ); }
-
-        if instruction.hazThreeByteXOP()          { output.push ( ThreeByteXOP                      ); }
-        if instruction.hazTwoByteVEX()            { output.push ( TwoByteVEX                        ); }
-        if instruction.hazThreeByteVEX()          { output.push ( ThreeByteVEX                      ); }
-        if instruction.hazREX()                   { output.push ( instruction.getREX()              ); }
-
-        //  Opcode
-        if instruction.hazTwoByteOpcode()         { output.push ( TwoByteOpcode                     ); }
-        output.push ( opcode );
-
-        //  Mod Reg R/M
-        if let Some ( value ) = instruction.getModRegRM()
-        {
-          output.push ( value );
-        }
-
-        //  Scale Index Base
-        if let Some ( value ) = instruction.getSIBByte()
-        {
-          output.push ( value );
-        }
-
-        //  Displacement Value
-        let ( length, displacement  )             =   instruction.getDisplacement();
-        for ctr                                   in  0 .. length
-        {
-          output.push ( ( ( displacement >> ( 8 * ctr ) ) & 0xff ) as u8 );
-        }
-
-        //  Immediate Value
-        let ( length, immediate )                 =   instruction.getImmediate();
-        for ctr                                   in  0 .. length
-        {
-          output.push ( ( ( immediate >> ( 8 * ctr ) ) & 0xff ) as u8 );
-        }
+        rounds                          =   Some  ( round );
+        break;
       }
     }
 
-    Ok ( output.into_boxed_slice() )
+    if let Some ( rounds  ) = rounds
+    {
+      //  and finally encode all teh things
+      for instruction                   in  self.instructions
+      {
+        instruction.print       ();
+        if let Some ( opcode ) = instruction.getOpcode()
+        {
+          //  Group 1
+          if instruction.hazLock()                  { output.push ( Lock                              ); }
+          if instruction.hazRepeat()                { output.push ( instruction.getRepeat()           ); }
+
+          //  Group 2
+          if instruction.hazSegmentOverride()       { output.push ( instruction.getSegmentOverride()  ); }
+          if instruction.hazBranchHint()            { output.push ( instruction.getBranchHint()       ); }
+
+          //  Group 3
+          if instruction.hazOperandSizeOverride()   { output.push ( OperandSizeOverride               ); }
+
+          //  Group 4
+          if instruction.hazAddressSizeOverride()   { output.push ( AddressSizeOverride               ); }
+
+          if instruction.hazThreeByteXOP()          { output.push ( ThreeByteXOP                      ); }
+          if instruction.hazTwoByteVEX()            { output.push ( TwoByteVEX                        ); }
+          if instruction.hazThreeByteVEX()          { output.push ( ThreeByteVEX                      ); }
+          if instruction.hazREX()                   { output.push ( instruction.getREX()              ); }
+
+          //  Opcode
+          if instruction.hazTwoByteOpcode()         { output.push ( TwoByteOpcode                     ); }
+          output.push ( opcode );
+
+          //  Mod Reg R/M
+          if let Some ( value ) = instruction.getModRegRM()
+          {
+            output.push ( value );
+          }
+
+          //  Scale Index Base
+          if let Some ( value ) = instruction.getSIBByte()
+          {
+            output.push ( value );
+          }
+
+          //  Displacement Value
+          let ( length, displacement  ) =   instruction.getDisplacement();
+          for ctr                       in  0 .. length
+          {
+            output.push ( ( ( displacement >> ( 8 * ctr ) ) & 0xff ) as u8 );
+          }
+
+          //  Immediate Value
+          let ( length, immediate )     =   instruction.getImmediate();
+          for ctr                       in  0 .. length
+          {
+            output.push ( ( ( immediate >> ( 8 * ctr ) ) & 0xff ) as u8 );
+          }
+        }
+      }
+      Ok  ( output.into_boxed_slice() )
+    }
+    else
+    {
+      Err
+      (
+        format!
+        (
+          "Cannot be Compiled in {} Rounds. Either the Code Just Cannot be Compiled or You Have to Adjust the Number of Rounds",
+          maxRounds,
+        )
+      )
+    }
   }
 
   pub fn list

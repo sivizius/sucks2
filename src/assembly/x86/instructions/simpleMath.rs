@@ -44,7 +44,7 @@ macro_rules!  declareSimpleMathInstruction
               self.features | $theFeatures,
               size,
               $theInstruction,
-              vec! ( dstThis, srcThis ),
+              vec!  ( dstThis,  srcThis ),
             )
           );
           self.line                     +=  1;
@@ -299,7 +299,7 @@ impl  Instruction
       (
         format!
         (
-          "Instruction Must Take Exactly 2 Arguments, got {}",
+          "Instruction Must Take Exactly Two Arguments, got {}",
           self.operands.len(),
         )
       )

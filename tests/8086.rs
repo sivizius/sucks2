@@ -26,6 +26,10 @@ use sucks2::
       {
         SegmentRegisterNumber,
       },
+      symbols::
+      {
+        Symbol,
+      },
     },
   },
   formats::
@@ -144,14 +148,14 @@ fn main () -> Result<(), &'static str>
 {
   let     myCode
   = X86 ()
-    .label( "simple math instruction 8 bit"                                                         ) 
+    .label( "simple math instructions 8 bit"                                                        )
     .add  ( X86::cl,                                X86::dl                                         ) //  Register  to  Register
     .add  ( x86Mem16! ( byte [ bp si 0x80 - + ] ),  X86::dl                                         ) //  Register  to  Memory
     .add  ( X86::dl,                                x86Mem16! ( byte [ bp si 0x80 - + ] )           ) //  Memory    to  Register
     .add  ( X86::cl,                                0x90                                            ) //  Immediate to  Register
     .add  ( x86Mem16! ( byte [ bp si 0x80 - + ] ),  0x42                                            ) //  Immediate to  Memory
     .add  ( X86::al,                                0x23                                            ) //  Immediate to  Accumulator
-    .label( "simple math instruction 16 bit"                                                        ) 
+    .label( "simple math instructions 16 bit"                                                       )
     .add  ( X86::cx,                                X86::dx                                         ) //  Register  to  Register
     .add  ( x86Mem16! ( word [ bp si 0x80 - + ] ),  X86::dx                                         ) //  Register  to  Memory
     .add  ( X86::dx,                                x86Mem16! ( word [ bp si 0x80 - + ] )           ) //  Memory    to  Register
@@ -160,7 +164,10 @@ fn main () -> Result<(), &'static str>
     .add  ( x86Mem16! ( word [ bp si 0x80 - + ] ),  0x42                                            ) //  Immediate to  Memory    Sign Extended
     .add  ( x86Mem16! ( word [ bp si 0x80 - + ] ),  0x1337                                          ) //  Immediate to  Memory
     .add  ( X86::ax,                                0x1337                                          ) //  Immediate to  Accumulator
-    .label( "one byte instructions"                                                                 ) 
+    .label( "jump instruction"                                                                      )
+    .je   ( Symbol  ( "simple math instructions 16 bit" )                                           ) //  Conditional Jump backward
+    .jz   ( Symbol  ( "one byte instructions"           )                                           ) //  Conditional Jump forward
+    .label( "one byte instructions"                                                                 )
     .iret (                                                                                         )
     ;
 
@@ -170,6 +177,7 @@ fn main () -> Result<(), &'static str>
       InstructionSet::i8086,
       16,
       16,
+      10,
     ).unwrap();
 
   let mut file                          =   File::create  ( "build/8086.bin"  ).unwrap();

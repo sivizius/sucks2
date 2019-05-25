@@ -38,7 +38,7 @@ macro_rules! theInstruction
               self.features,
               0,
               $theInstruction,
-              vec! (),
+              vec!  ( ),
             )
           );
           self.line                     +=  1;
@@ -83,4 +83,17 @@ impl X86
   theInstruction! ( stosw,  InstructionType::STOSW  );
   theInstruction! ( wait,   InstructionType::WAIT   );
   theInstruction! ( xlat,   InstructionType::XLAT   );
+}
+
+impl  Instruction
+{
+  pub fn compileZeroOperandInstruction
+  (
+    &mut self,
+    opcode:                             u8,
+  ) -> Result<Option<usize>, String>
+  {
+    self.setOpcode  ( opcode  );
+    Ok  ( Some  ( 1 ) )
+  }
 }

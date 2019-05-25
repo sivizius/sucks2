@@ -1,3 +1,4 @@
+mod jumps;
 mod simpleMath;
 mod zeroOperands;
 
@@ -13,6 +14,11 @@ pub use super::
     Operand,
     OperandType,
   },
+  symbols::
+  {
+    SymbolIdentifier,
+    SymbolReference,
+  },
 };
 
 use rand;
@@ -27,7 +33,7 @@ pub struct Instruction
   instruction:                          InstructionType,
   operands:                             Vec<OperandType>,
   //  for processing, initialised empty/invalid
-  address:                              InstructionAddress,
+  address:                              Option<InstructionAddress>,
   hazLock:                              bool,
   theRepeat:                            u8,
   theSegmentOverride:                   u8,
@@ -78,7 +84,7 @@ impl Instruction
 
   pub fn orOperandSize                  ( &mut  self, size:     usize               ) { self.size                   |=  size;                 }
 
-  pub fn setAddress                     ( &mut  self, address:  InstructionAddress  ) { self.address                =   address;              }
+  pub fn setAddress                     ( &mut  self, address:  InstructionAddress  ) { self.address                =   Some  ( address );    }
   pub fn setAddressSizeOverride         ( &mut  self, value:    bool                ) { self.hazAddressSizeOverride =   value;                }
   pub fn setBranchHint                  ( &mut  self, value:    u8                  ) { self.theBranchHint          =   value;                }
   pub fn setDisplacement
@@ -114,6 +120,7 @@ impl Instruction
   pub fn setThreeByteXOP                ( &mut  self, value:    bool                ) { self.hazThreeByteXOP        =   value;            }
   pub fn setTwoByteOpcode               ( &mut  self, value:    bool                ) { self.hazTwoByteOpcode       =   value;            }
   pub fn setTwoByteVEX                  ( &mut  self, value:    bool                ) { self.hazTwoByteVEX          =   value;            }
+  pub fn setType                        ( &mut  self, value:    InstructionType     ) { self.instruction            =   value;            }
 
   pub fn encodeModRegRMdata
   (
@@ -306,9 +313,9 @@ impl Instruction
   {
     if self.instruction > InstructionType::ActualInstruction
     {
-      if let InstructionAddress::Some { base, offs } = self.address
+      if let Some ( address ) = self.address
       {
-        print!  ( "{:04x}:{:016x} ", base, offs );
+        print!  ( "{:04x}:{:016x} ",  address.base, address.offs );
       }
       else
       {
@@ -423,7 +430,7 @@ pub fn Instruction
     instruction:                        instruction,
     operands:                           operands,
     //  for processing, initialised empty/invalid
-    address:                            InstructionAddress::None,
+    address:                            None,
     hazLock:                            false,
     theRepeat:                          0,
     theSegmentOverride:                 0,
@@ -445,15 +452,11 @@ pub fn Instruction
   }
 }
 
-#[derive(Clone,Copy)]
-pub enum InstructionAddress
+#[derive(Clone,Copy,PartialEq)]
+pub struct InstructionAddress
 {
-  None,
-  Some
-  {
-    base:                               usize,
-    offs:                               u64,
-  },
+  pub base:                             usize,
+  pub offs:                             u64,
 }
 
 impl InstructionAddress
@@ -462,39 +465,48 @@ impl InstructionAddress
   (
     &mut self,
     offset:                             Option<usize>,
-  ) -> Result<( usize, u64 ), &'static str>
+  )
   {
-    if let InstructionAddress::Some { ref mut base, ref mut offs } = self
+    if let Some ( diff ) = offset
     {
-      if let Some ( diff ) = offset
-      {
-        let     offset                  =   *offs + diff as u64;
-        *offs                           =   offset;
-      }
-      else
-      {
-        *base                           =   *base + 1;
-        *offs                           =   0;
-      }
-      Ok
-      (
-        (
-          *base,
-          *offs,
-        )
-      )
+      let     offset                    =   self.offs + diff as u64;
+      self.offs                         =   offset;
     }
     else
     {
-      Err ( "No Instruction Address" )
+      self.base                         =   self.base + 1;
+      self.offs                         =   0;
     }
+  }
+  pub fn diff
+  (
+    &self,
+    this:                               InstructionAddress,
+  ) -> Option<i128>
+  {
+    if self.base == this.base
+    {
+      Some  ( this.offs as i128 - self.offs as i128 )
+    }
+    else
+    {
+      None
+    }
+  }
+  pub fn done
+  (
+    &self,
+  ) ->  bool
+  {
+    self.base ==  0
   }
 }
 
 #[derive(Clone,Debug,PartialEq,PartialOrd)]
 pub enum InstructionType
 {
-  Label                                 ( usize ),
+  Label                                 ( SymbolIdentifier  ),
+  Reference                             ( SymbolReference   ),
   ActualInstruction,
   AAA,
   AAD,

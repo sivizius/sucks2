@@ -38,7 +38,7 @@ bitflags!
   pub struct AssemblyFeatures:          usize
   {
     const None                          =   0b0000_0000_0000_0000_0000_0000_0000_0000;  //  No Features
-    const Default                       =   0b0000_0000_0000_0000_0000_0000_1100_0000;  //  Default
+    const Default                       =   0b0000_0000_0000_0000_0000_0000_0000_0000;  //  Default
 
     //  Randomise Order
     const RandomExecutionOrder          =   0b0000_0000_0000_0000_0000_0000_0000_0001;  //  Randomise Order of Execution by moving around instructions

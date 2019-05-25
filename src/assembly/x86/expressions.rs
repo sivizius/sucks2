@@ -19,7 +19,7 @@ use super::
 #[derive(Clone,Debug)]
 pub struct Expression ( pub Vec<ExpressionToken> );
 
-impl Operand for Expression
+impl Operand                            for Expression
 {
   fn this   ( self ) -> ( OperandType, usize )  { ( OperandType::Expression ( self ), 0 ) }
 }
@@ -442,7 +442,6 @@ pub enum ExpressionToken
     registers:                          Memory16Registers,
     displacement:                       i128,
   },
-  //Label                                 ( usize ),
   //  One Operand Operators
   Neg,
   BitwiseNot,
